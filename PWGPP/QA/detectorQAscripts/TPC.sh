@@ -41,15 +41,15 @@ periodLevelQA()
   # aliroot -b -q -l "makePeriodTrendingTree.C(\"trending.root\",\"PbPb\")"
   makeHTMLindexPerPeriod
   
-  cd ../../MCRD/
-  echo "running mcrd.C in " $PWD
-  source $ALICE_PHYSICS/PWGPP/QA/detectorQAscripts/MCRD.sh
-  anchorinfo=${anchorinfo[$period]}
-  anchorper=${anchorinfo%%:*}
-  anchorpass=${anchorinfo##*:}
-  echo "MCRD output: MC period: $anchorinfo; anchor period: $anchorper; anchor pass:  $anchorpass" 
-  aliroot -b -q -l "/home/sebaleh/Documents/service/mcrd.C(\"$period\",\"$anchorper\",\"$anchorpass\")"
-  cd -  
+#  cd ../../MCRD/
+#  echo "running mcrd.C in " $PWD
+#  source $ALICE_PHYSICS/../latest/PWGPP/QA/detectorQAscripts/MCRD.sh
+#  anchorinfo=${anchorinfo[$period]}
+#  anchorper=${anchorinfo%%:*}
+#  anchorpass=${anchorinfo##*:}
+#  echo "MCRD output: MC period: $anchorinfo; anchor period: $anchorper; anchor pass:  $anchorpass" 
+#  aliroot -b -q -l "/home/sebaleh/Documents/service/mcrd.C(\"$period\",\"$anchorper\",\"$anchorpass\")"
+#  cd -  
 }
 
 makeHTMLindexPerRun()
