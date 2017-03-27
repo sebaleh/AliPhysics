@@ -43,7 +43,7 @@ periodLevelQA()
   
   cd ../../MCRD/
   echo "running mcrd.C in " $PWD
-  source /home/sebaleh/Documents/service/listMCRD.sh
+  source $ALICE_PHYSICS/PWGPP/QA/detectorQAscripts/MCRD.sh
   anchorinfo=${anchorinfo[$period]}
   anchorper=${anchorinfo%%:*}
   anchorpass=${anchorinfo##*:}
