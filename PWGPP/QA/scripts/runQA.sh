@@ -203,8 +203,8 @@ updateQA()
     unset -f runLevelEventStatQA
     unset -f runLevelHighPtTreeQA
     unset -f periodLevelHighPtTreeQA
-#    source ${detectorScript}
-    source /home/sebaleh/Documents/service/TPC.sh
+    source ${detectorScript}
+#    source /home/sebaleh/Documents/service/TPC.sh
     #################################################################
     #produce the QA and trending tree for each file (run)
     unset arrOfTouchedProductions
