@@ -3,6 +3,13 @@
 # run without arguments for examples
 # origin: Mikolaj Krzewicki, mkrzewic@cern.ch
 #
+
+if [[ $(whoami) != "service" ]];then
+    echo "SAFETY INTERRUPT: you are not user named: service -> EXIT"
+    echo "you are:" $(whoami)
+    exit 1
+fi
+
 if [ ${BASH_VERSINFO} -lt 4 ]; then
   echo "bash version >= 4 needed, you have ${BASH_VERSION}, exiting..."
   exit 1
@@ -34,6 +41,7 @@ inputList=file.list
 workingDirectory="${PWD}"
 #where to place the final qa plots
 #outputDirectory="/afs/cern.ch/work/a/aliqa%det/www/"
+outputDirectory="${workingDirectory}/%DET"
 outputDirectory="${workingDirectory}/%DET"
 #filter out detector option
 excludeDetectors="EXAMPLE"
@@ -195,8 +203,8 @@ updateQA()
     unset -f runLevelEventStatQA
     unset -f runLevelHighPtTreeQA
     unset -f periodLevelHighPtTreeQA
-    source ${detectorScript}
-
+#    source ${detectorScript}
+    source /home/sebaleh/Documents/service/TPC.sh
     #################################################################
     #produce the QA and trending tree for each file (run)
     unset arrOfTouchedProductions
@@ -213,15 +221,20 @@ updateQA()
         continue
       fi
       echo "anchorYear for ${originalPeriod} is: ${anchorYear}"
-
+#test
       if [[ ${dataType} =~ "sim" ]]; then
         tmpProductionDir=${tmpPrefix}/${dataType}/${year}/${originalPeriod}/${pass}
+        tmpProductionDirMCRD=${tmpPrefix}/${dataType}/${year}/${originalPeriod}/"MCRD"
       else
         tmpProductionDir=${tmpPrefix}/${dataType}/${year}/${period}/${pass}
       fi
 
       tmpRunDir=${tmpProductionDir}/000${runNumber}
       mkdir -p ${tmpRunDir}
+
+      if [[ ${dataType} =~ "sim" ]]; then
+        mkdir -p ${tmpProductionDirMCRD}
+      fi
 
       cd ${tmpRunDir}
 
@@ -420,6 +433,15 @@ updateQA()
         hadd -k trending.root 000*/trending.root &> periodLevelQA.log
       fi
 
+      #make final MCRD directory
+      if [[ ${dataType} =~ "sim" ]]; then
+        mkdir -p ${productionDir}/../MCRD
+        if [[ ! -d ${productionDir} ]]; then
+            echo "cannot make productionDir ${productionDir}/../MCRD" && continue
+        fi
+      fi
+
+
       #run the period level trending/QA
       if [[ -f "trending.root" && $(type -t periodLevelQA) =~ "function" ]]; then
         echo running ${detector} periodLevelQA for production ${period}/${pass}
@@ -451,6 +473,13 @@ updateQA()
             mv -f ${x} ${productionDir}
           fi
         done
+        
+        #move MCRD
+        if [[ ${dataType} =~ "sim" ]]; then
+            echo "moving temp MCRD directory from $PWD to final MCRD directory: ${productionDir}/../MCRD"
+            mv ../../MCRD/* ${productionDir}/../MCRD
+        fi
+
         rm -f ${periodLevelLock}
         #remove the temp dir
         rm -rf ${tmpPeriodLevelQAdir}
