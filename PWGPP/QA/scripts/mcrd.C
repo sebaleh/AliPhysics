@@ -2,9 +2,10 @@
 
 void mcrd(const char* MCper,const char* anchper,const char* anchpass){
 
-gSystem->SetIncludePath("-I/home/sebaleh/alice/ali-master/AliRoot/STAT");
-gROOT->LoadMacro("/home/sebaleh/Documents/service/alice-tpc-notes-master/JIRA/ATO-83/code/tpcMCValidationStandardQA.C+");
-
+gSystem->SetIncludePath("-I$ALICE_ROOT/STAT");
+gROOT->LoadMacro("/home/sebaleh/Documents/service/alice-tpc-notes/JIRA/ATO-83/code/tpcMCValidationStandardQA.C+");
+//gROOT->LoadMacro("$NOTES/JIRA/ATO-83/code/tpcMCValidationStandardQA.C+");
+cout<<"mcrd.C: INITIALIZING TPC MC Validation"<<endl;
 InitTPCMCValidation(MCper,"passMC",anchper, anchpass,0,0);
 
 Double_t cRange[4]={0.13,0.01,0.5,0.35};

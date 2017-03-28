@@ -477,6 +477,7 @@ updateQA()
         #move MCRD
         if [[ ${dataType} =~ "sim" ]]; then
             echo "moving temp MCRD directory from $PWD to final MCRD directory: ${productionDir}/../MCRD"
+            ls ../../
             mv ../../MCRD/* ${productionDir}/../MCRD
         fi
 

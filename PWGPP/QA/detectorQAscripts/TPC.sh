@@ -43,12 +43,13 @@ periodLevelQA()
   
   cd ../../MCRD/
   echo "running mcrd.C in " $PWD
-  source $ALICE_PHYSICS/../latest-ali-master-release/PWGPP/QA/detectorQAscripts/MCRD.sh
+  source /home/sebaleh/Documents/service/alice-tpc-notes/JIRA/ATO-83/code/listMCRD.sh
+  #source $NOTES/JIRA/ATO-83/code/listMCRD.sh
   anchorinfo=${anchorinfo[$period]}
   anchorper=${anchorinfo%%:*}
   anchorpass=${anchorinfo##*:}
-  echo "MCRD output: MC period: $anchorinfo; anchor period: $anchorper; anchor pass:  $anchorpass" 
-  aliroot -b -q -l "/home/sebaleh/Documents/service/mcrd.C(\"$period\",\"$anchorper\",\"$anchorpass\")"
+  echo "MCRD info: MC period: $anchorinfo; anchor period: $anchorper; anchor pass:  $anchorpass" 
+  aliroot -b -q -l "$ALICE_PHYSICS/PWGPP/QA/scripts/mcrd.C(\"$period\",\"$anchorper\",\"$anchorpass\")"
   cd -  
 }
 
