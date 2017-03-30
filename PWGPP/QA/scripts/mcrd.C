@@ -1,12 +1,17 @@
 
 
-void mcrd(const char* MCper,const char* anchper,const char* anchpass){
+//void mcrd(const char* MCper,const char* anchper,const char* anchpass){
+void mcrd(){
 
-gSystem->SetIncludePath("-I$ALICE_ROOT/STAT");
-gROOT->LoadMacro("/home/sebaleh/Documents/service/alice-tpc-notes/JIRA/ATO-83/code/tpcMCValidationStandardQA.C+");
-//gROOT->LoadMacro("$NOTES/JIRA/ATO-83/code/tpcMCValidationStandardQA.C+");
+//gSystem->AddIncludePath(" -I/home/sebaleh/alice/ali-master ");
+//gInterpreter->AddIncludePath("/home/sebaleh/alice/ali-master/AliRoot/STAT");
+//gInterpreter->AddIncludePath("/home/sebaleh/alice/ali-master/AliRoot/STEER/STEERBase");
+//gInterpreter->AddIncludePath("/home/sebaleh/alice/ali-master/AliPhysics/PWGPP/macros");
+//gROOT->ProcessLine(".include ~/home/sebaleh/alice/ali-master/AliPhysics/PWGPP/macros");
+gROOT->LoadMacro("tpcMCValidationStandardQA.C+");
 cout<<"mcrd.C: INITIALIZING TPC MC Validation"<<endl;
-InitTPCMCValidation(MCper,"passMC",anchper, anchpass,0,0);
+//InitTPCMCValidation(MCper,"passMC",anchper, anchpass,0,0);
+InitTPCMCValidation("LHC15k1a1","passMC","LHC15o", "pass3_lowIR_pidfix",0,0);
 
 Double_t cRange[4]={0.13,0.01,0.5,0.35};
 Double_t cRange2[4]={0.13,0.01,0.5,0.3};
