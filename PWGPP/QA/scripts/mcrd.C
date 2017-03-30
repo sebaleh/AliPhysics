@@ -1,22 +1,17 @@
 
 
-//void mcrd(const char* MCper,const char* anchper,const char* anchpass){
-void mcrd(){
+void mcrd(const char* MCper,const char* anchper,const char* anchpass){
 
-//gSystem->AddIncludePath(" -I/home/sebaleh/alice/ali-master ");
-//gInterpreter->AddIncludePath("/home/sebaleh/alice/ali-master/AliRoot/STAT");
-//gInterpreter->AddIncludePath("/home/sebaleh/alice/ali-master/AliRoot/STEER/STEERBase");
-//gInterpreter->AddIncludePath("/home/sebaleh/alice/ali-master/AliPhysics/PWGPP/macros");
-//gROOT->ProcessLine(".include ~/home/sebaleh/alice/ali-master/AliPhysics/PWGPP/macros");
 gROOT->LoadMacro("tpcMCValidationStandardQA.C+");
 cout<<"mcrd.C: INITIALIZING TPC MC Validation"<<endl;
-//InitTPCMCValidation(MCper,"passMC",anchper, anchpass,0,0);
-InitTPCMCValidation("LHC15k1a1","passMC","LHC15o", "pass3_lowIR_pidfix",0,0);
+InitTPCMCValidation(MCper,"passMC",anchper, anchpass,0,0);
+//InitTPCMCValidation("LHC15k1a1","passMC","LHC15o", "pass3_lowIR_pidfix",0,0);
 
 Double_t cRange[4]={0.13,0.01,0.5,0.35};
 Double_t cRange2[4]={0.13,0.01,0.5,0.3};
 Double_t cRange5[4]={0.13,0.01,0.8,0.3};
 TMultiGraph *graph=0,*lines=0;
+
 
 
 
