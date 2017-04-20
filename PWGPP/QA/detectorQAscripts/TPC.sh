@@ -50,7 +50,7 @@ periodLevelQA()
     anchorper=${anchorinfo%%:*}
     anchorpass=${anchorinfo##*:}
     echo "MCRD info: MC period: $anchorinfo; anchor period: $anchorper; anchor pass:  $anchorpass" 
-        aliroot -q  "$ALICE_PHYSICS/PWGPP/macros/tpcMCValidation.C(\"$period\",\"$anchorper\",\"$anchorpass\")"
+        aliroot -q  "$ALICE_PHYSICS/PWGPP/macros/tpcMCValidation.C+(\"$period\",\"$anchorper\",\"$anchorpass\")"
     cd - 
   fi 
 }

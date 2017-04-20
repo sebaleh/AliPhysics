@@ -9,15 +9,17 @@
  
 
 */ 
-#include "TTree.h"
+//gSystem->AddIncludePath("-I$ALICE_ROOT/include/"); //couldn't add include path in .rootrc
 
+#include "TCanvas.h"
+#include "TLatex.h" 
+#include "TTree.h"
+#include "TObjArray.h"
 #include "TLegend.h"
 #include "TGraph.h"
 #include "TTreeFormula.h"
 #include "AliExternalInfo.h"
 #include "AliTreeTrending.h"
-
-//gSystem->AddIncludePath("-I$ALICE_ROOT/include/"); //couldn't add include path in .rootrc
 #include "TStatToolkit.h"
 
 AliExternalInfo   *pinfo=0;
@@ -30,7 +32,7 @@ void InitTPCMCValidation(TString mcPeriod,  TString mcPass, TString anchorPeriod
 void MakeReport();
 
 
-void tpcMCValidation(const char* MCper,const char* anchper,const char* anchpass){
+void tpcMCValidation(const char* MCper ="LHC15k1a1",const char* anchper="LHC15o",const char* anchpass="pass3_lowIR_pidfix"){
 
 //gROOT->LoadMacro("tpcMCValidationStandardQA.C+");
 cout<<"INITIALIZING TPC MC Validation"<<endl;

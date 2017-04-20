@@ -450,7 +450,10 @@ updateQA()
         echo "WARNING: not running ${detector} periodLevelQA for production ${period}/${pass}, no trending.root"
       fi
 
-      if ! validate ${PWD}; then continue; fi
+      if ! validate ${PWD};
+             then continue
+             echo "validation failed: "${PWD}
+      fi
 
       #here we are validated so move the produced QA to the final place
       #clean up linked stuff first
@@ -476,9 +479,9 @@ updateQA()
         
         #move MCRD
         if [[ ${dataType} =~ "sim" ]]; then
-            echo "moving temp MCRD directory from $PWD to final MCRD directory: ${productionDir}/../MCRD"
-            ls ../../
-            mv ../../MCRD/* ${productionDir}/../MCRD
+            echo "moving temp MCRD directory from $PWD to final MCRD directory: ${productionDir}/../MCRD/"
+            ls ../../MCRD/
+            mv ../../MCRD/* ${productionDir}/../MCRD/
         fi
 
         rm -f ${periodLevelLock}
