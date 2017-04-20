@@ -279,6 +279,12 @@ TH1D* AliStrangenessModule::DoAnalysis( TString lConfiguration, TString lOutputF
     TString lDataName = lConfiguration.Data();
     lDataName.Append("_Data");
     AliVWeakResult *lDataResult = (AliVWeakResult*) lDataInput->FindObject(lConfiguration.Data())->Clone( lDataName.Data() );
+    
+    //============================================================================
+    //Do bookkeeping of base input 
+    fListData->Add(lDataResult);
+    //============================================================================
+    
     if(lVerbose) lDataResult->Print();
     
     //_________________________________________________
@@ -469,18 +475,24 @@ TH1D* AliStrangenessModule::DoAnalysis( TString lConfiguration, TString lOutputF
     Double_t lSignalVsPt[100], lSignalErrVsPt[100];
     TH1D* fHistRawVsPt  = new TH1D("fHistRawVsPt", "",lNPtBins,lPtBins);
     fHistRawVsPt->SetDirectory(0);
+    TH1D* fHistBgVsPt  = new TH1D("fHistBgVsPt", "",lNPtBins,lPtBins);
+    fHistBgVsPt->SetDirectory(0);
     
     if(!lVerbose) cout<<"AliStrangenessModule -> Extracting signal (data): ["<<flush;
     lExtStatus = kTRUE;
+    Double_t lBackground = 0;
+    Double_t lBackgroundError = 0;
     for(Long_t ibin = 0; ibin<lNPtBins; ibin++){
         if( lVerbose) cout<<"Extracting yield for bin #"<<ibin<<Form("\t%.1f-%.1f",lPtBins[ibin],lPtBins[ibin+1])<<endl;
-        lExtStatus = PerformSignalExtraction( lHistoData[ibin], lSignalVsPt[ibin], lSignalErrVsPt[ibin], lMeanVsPt[ibin], lSigmaVsPt[ibin], fListData, lSigExtTech[ibin].Data() );
+        lExtStatus = PerformSignalExtraction( lHistoData[ibin], lSignalVsPt[ibin], lSignalErrVsPt[ibin], lBackground, lBackgroundError, lMeanVsPt[ibin], lSigmaVsPt[ibin], fListData, lSigExtTech[ibin].Data() );
         if( !lVerbose ){
             //Report errors with "!"
             if( lExtStatus ){ cout<<"="<<flush; } else { cout<<"!"<<flush; }
         }
         fHistRawVsPt->SetBinContent(ibin+1, lSignalVsPt[ibin] );
         fHistRawVsPt->SetBinError(ibin+1, lSignalErrVsPt[ibin] );
+        fHistBgVsPt->SetBinContent(ibin+1, lBackground );
+        fHistBgVsPt->SetBinError(ibin+1, lBackgroundError );
     }
     if( lVerbose){
         cout<<"---] Signal Extraction summary [----------------------------"<<endl;
@@ -494,6 +506,7 @@ TH1D* AliStrangenessModule::DoAnalysis( TString lConfiguration, TString lOutputF
     
     //Add raw spectra as main analysis output
     fListOutput->Add(fHistRawVsPt);
+    fListOutput->Add(fHistBgVsPt);
     
     if(lDoOnlyData){
         fFileOut->cd();
@@ -570,7 +583,9 @@ TH1D* AliStrangenessModule::DoAnalysis( TString lConfiguration, TString lOutputF
     lExtStatus = kTRUE;
     for(Long_t ibin = 0; ibin<lNPtBins; ibin++){
         if(lVerbose) AliWarning(Form("MC Signal extraction on: %s",lHistoData[ibin]->GetName()));
-        lExtStatus = PerformSignalExtraction( lHistoMC[ibin], lSignalVsPtMC[ibin], lSignalErrVsPtMC[ibin], lMeanVsPt[ibin], lSigmaVsPt[ibin], fListMC, "MC" );
+        Double_t lBackgroundMC = 0;
+        Double_t lBackgroundErrorMC = 0;
+        lExtStatus = PerformSignalExtraction( lHistoMC[ibin], lSignalVsPtMC[ibin], lSignalErrVsPtMC[ibin], lBackgroundMC, lBackgroundErrorMC, lMeanVsPt[ibin], lSigmaVsPt[ibin], fListMC, "MC" );
         if( !lVerbose ){
             //Report errors with "!"
             if( lExtStatus ){ cout<<"="<<flush; } else { cout<<"!"<<flush; }
@@ -590,8 +605,8 @@ TH1D* AliStrangenessModule::DoAnalysis( TString lConfiguration, TString lOutputF
     f3dHistGenMC->Sumw2();
     //Project this into a 1D histogram, please
     TH1D* fHistGeneratedOriginal = f3dHistGenMC -> ProjectionX( "fHistGeneratedOriginal",
-                                                       f3dHistGenMC->GetYaxis()->FindBin(-0.5+1e-5),
-                                                       f3dHistGenMC->GetYaxis()->FindBin(+0.5-1e-5),
+                                                       f3dHistGenMC->GetYaxis()->FindBin(lDataResult->GetCutMinRapidity()+1e-5),
+                                                       f3dHistGenMC->GetYaxis()->FindBin(lDataResult->GetCutMaxRapidity()-1e-5),
                                                        f3dHistGenMC->GetZaxis()->FindBin( lLoMult+1e-5 ),
                                                        f3dHistGenMC->GetZaxis()->FindBin( lHiMult-1e-5 )
                                                        );
@@ -617,8 +632,17 @@ TH1D* AliStrangenessModule::DoAnalysis( TString lConfiguration, TString lOutputF
     //Generate Corrected Spectrum
     TH1D *fHistSpectra = (TH1D*) fHistRawVsPt->Clone("fHistSpectra");
     fHistSpectra->SetDirectory(0);
+    
+    //Efficiency correction
     fHistSpectra->Divide(fHistEfficiency);
+    
+    //Normalize by number of events
     fHistSpectra->Scale(1.0/lNEvents, "width");
+    
+    //Scale with rapidity window size (default: no scale)
+    fHistSpectra->Scale(1.0/(lDataResult->GetCutMaxRapidity()-lDataResult->GetCutMinRapidity()));
+    
+    //Add to output 
     fListOutput->Add(fHistSpectra);
     
     TH1D *fHistSpectraToReturn = (TH1D*) fHistSpectra->Clone("fHistSpectraToReturn");
@@ -722,7 +746,7 @@ Bool_t AliStrangenessModule::PerformInitialFit( TH1D *lHisto, Double_t &lMean, D
 }
 
 //________________________________________________________________
-Bool_t AliStrangenessModule::PerformSignalExtraction( TH1D *lHisto, Double_t &lSignal, Double_t &lSignalErr, Double_t lMean, Double_t lSigma, TList *lControlList, TString lOption ){
+Bool_t AliStrangenessModule::PerformSignalExtraction( TH1D *lHisto, Double_t &lSignal, Double_t &lSignalErr, Double_t &lBackground, Double_t &lBackgroundError, Double_t lMean, Double_t lSigma, TList *lControlList, TString lOption ){
     //Helper function to perform actual signal extraction
     
     Bool_t lReturnValue = kTRUE; //everything went alright -> kTRUE
@@ -749,12 +773,12 @@ Bool_t AliStrangenessModule::PerformSignalExtraction( TH1D *lHisto, Double_t &lS
     
     //Get very first guess for linear background
     Double_t lAverageBg = lHisto->Integral(lBinLeftBgLo,lBinLeftBgHi )+lHisto->Integral(lBinRightBgLo,lBinRightBgHi) ;
-    lAverageBg = lAverageBg / ( lValLeftBgHi-lValLeftBgLo + lValRightBgHi-lValRightBgLo);
+    lAverageBg = lAverageBg / ( lBinLeftBgHi - lBinLeftBgLo + lBinRightBgHi - lBinRightBgLo + 2);
     
-    Double_t lLeftY = lHisto->Integral(lBinLeftBgLo, lBinLeftBgHi  ) / (lValLeftBgHi -lValLeftBgLo );
+    Double_t lLeftY = lHisto->Integral(lBinLeftBgLo, lBinLeftBgHi  ) / (lBinLeftBgHi - lBinLeftBgLo + 1 );
     Double_t lLeftX = 0.5*(lValLeftBgHi+lValLeftBgLo );
     
-    Double_t lRightY = lHisto->Integral(lBinRightBgLo,lBinRightBgHi ) / (lValRightBgHi-lValRightBgLo);
+    Double_t lRightY = lHisto->Integral(lBinRightBgLo,lBinRightBgHi ) / (lBinRightBgHi - lBinRightBgLo + 1 );
     Double_t lRightX = 0.5*(lValRightBgHi+lValRightBgLo );
     
     Double_t lGuessedSlope = (lRightY-lLeftY)/(lRightX-lLeftX);
@@ -895,6 +919,10 @@ Bool_t AliStrangenessModule::PerformSignalExtraction( TH1D *lHisto, Double_t &lS
     //Save a fit if there is one
     if ( fit           ) lControlList->Add(fit          );
     if ( fitToSubtract ) lControlList->Add(fitToSubtract);
+    
+    //Provide background information to the outside scope
+    lBackground      = lBgEstimate;
+    lBackgroundError = lBgEstimateError;
     
     Double_t lPeakPlusBg      = 0;
     Double_t lPeakPlusBgError = 0;

@@ -32,12 +32,14 @@ class TH3F;
 class TVector3;
 class THnSparse;
 class TRandom3;
+class TProfile; 
 
 class AliESDpid;
 class AliESDtrackCuts;
 class AliAnalysisUtils;
 class AliESDEvent;
 class AliPhysicsSelection;
+class AliESDFMD;
 class AliCFContainer;
 class AliV0Result;
 class AliCascadeResult;
@@ -57,6 +59,9 @@ public:
     virtual void   UserExec(Option_t *option);
     virtual void   Terminate(Option_t *);
     Double_t MyRapidity(Double_t rE, Double_t rPz) const;
+
+    //Fix on-the-fly v0s
+    void CheckChargeV0(AliESDv0 *v0);
 
     void SetSaveV0s                (Bool_t lSaveV0s        = kTRUE ) {
         fkSaveV0Tree        = lSaveV0s;
@@ -159,6 +164,21 @@ public:
     void SetMaxPt     ( Float_t lMaxPt ) {
         fMaxPtToSave = lMaxPt;
     }
+    void SetLambdaWindowParameters     ( Double_t *fMeanPars, Double_t *fSigmaPars ) {
+        for(Int_t ipar=0; ipar<5; ipar++) fLambdaMassMean[ipar]  = fMeanPars[ipar];
+        for(Int_t ipar=0; ipar<4; ipar++) fLambdaMassSigma[ipar] = fSigmaPars[ipar];
+    }
+    void SetLambdaWindowParametersStandard (){
+        fLambdaMassMean[0] =  1.15768e+00;
+        fLambdaMassMean[1] = -4.15945e-02;
+        fLambdaMassMean[2] = -7.14294e-04;
+        fLambdaMassMean[3] = -1.62793e-02;
+        fLambdaMassMean[4] = -7.84067e+00;
+        fLambdaMassSigma[0] = 1.30345e-03;
+        fLambdaMassSigma[1] = 2.89679e-04;
+        fLambdaMassSigma[2] = 1.52661e-03;
+        fLambdaMassSigma[3] =-2.58251e+00;
+    }
 //---------------------------------------------------------------------------------------
     //Superlight mode: add another configuration, please
     void AddConfiguration( AliV0Result      *lV0Result      );
@@ -174,9 +194,28 @@ public:
     // 3 - Standard analysis configurations + systematics
     void AddStandardV0Configuration();
     void AddStandardCascadeConfiguration();
+    void AddCascadeConfiguration276TeV(); //Adds old 2.76 PbPb cut level analyses
 //---------------------------------------------------------------------------------------
     Float_t GetDCAz(AliESDtrack *lTrack);
     Float_t GetCosPA(AliESDtrack *lPosTrack, AliESDtrack *lNegTrack, AliESDEvent *lEvent);
+//---------------------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------------------
+    // A simple struct to handle FMD hits information
+    // Nothe: this struct is based on what is implemented in AliAnalysisTaskValidation
+    //        defined as 'Track' (thanks to C. Bourjau). It was slightly changed here and
+    //        renamed to 'FMDhit' in order to avoid any confusion.
+    struct FMDhit {
+        Float_t eta;
+        Float_t phi;
+        Float_t weight;
+        //Constructor
+        FMDhit(Float_t _eta, Float_t _phi, Float_t _weight)
+            :eta(_eta), phi(_phi), weight(_weight) {};
+    };
+    typedef std::vector<AliAnalysisTaskStrangenessVsMultiplicityRun2::FMDhit> FMDhits;
+//---------------------------------------------------------------------------------------
+   AliAnalysisTaskStrangenessVsMultiplicityRun2::FMDhits GetFMDhits(AliAODEvent* aodEvent) const;
 //---------------------------------------------------------------------------------------
 
 
@@ -229,6 +268,12 @@ private:
     Double_t  fV0VertexerSels[7];        // Array to store the 7 values for the different selections V0 related
     Double_t  fCascadeVertexerSels[8];   // Array to store the 8 values for the different selections Casc. related
 
+    Double_t fLambdaMassMean[5]; //Array to store the lambda mass mean parametrization
+    //[0]+[1]*TMath::Exp([2]*x)+[3]*TMath::Exp([4]*x)
+
+    Double_t fLambdaMassSigma[4]; //Array to store the lambda mass sigma parametrization
+    //[0]+[1]*x+[2]*TMath::Exp([3]*x)
+
     Float_t fMinPtToSave; //minimum pt above which we keep candidates in TTree output
     Float_t fMaxPtToSave; //maximum pt below which we keep candidates in TTree output
 
@@ -237,6 +282,7 @@ private:
 //===========================================================================================
     Float_t fCentrality; //!
     Bool_t fMVPileupFlag; //!
+    Bool_t fOOBPileupFlag; //!
 
     //TOF info for OOB pileuo study
     Int_t  fNTOFClusters;  //!
@@ -244,6 +290,15 @@ private:
     Int_t  fNTracksITSsa2010; //!
     Int_t  fNTracksGlobal2015; //!
     Int_t  fNTracksGlobal2015TriggerPP; //!
+
+    //V0 info for OOB pileup study
+    Float_t fAmplitudeV0A; //!
+    Float_t fAmplitudeV0C; //!
+
+    //FMD info for OOB pileup study
+    Float_t fNHitsFMDA; //!
+    Float_t fNHitsFMDC; //!
+
 
 
 //===========================================================================================
@@ -294,22 +349,18 @@ private:
     Float_t fTreeVariablePosDCAz; //!
 
     //Variables for OOB pileup study (high-multiplicity triggers pp 13 TeV - 2016 data)
-    Float_t fTreeVariableNegTOFExpTDiff;      //!
-    Float_t fTreeVariablePosTOFExpTDiff;      //!
-    Float_t fTreeVariableNegTOFSignal;        //!
-    Float_t fTreeVariablePosTOFSignal;        //!
-    Int_t   fTreeVariableNegTOFBunchCrossing; //!
-    Int_t   fTreeVariablePosTOFBunchCrossing; //!
+    Float_t fTreeVariableNegTOFExpTDiff; //!
+    Float_t fTreeVariablePosTOFExpTDiff; //!
     //Event info
-    Int_t  fTreeVariableNTOFClusters;  //!
-    Int_t  fTreeVariableNTOFMatches;   //!
-    Int_t  fTreeVariableNTracksITSsa2010; //!
-    Int_t  fTreeVariableNTracksGlobal2015; //!
-    Int_t  fTreeVariableNTracksGlobal2015TriggerPP; //!
+    Float_t fTreeVariableAmplitudeV0A; //!
+    Float_t fTreeVariableAmplitudeV0C; //!
+    Float_t fTreeVariableNHitsFMDA; //!
+    Float_t fTreeVariableNHitsFMDC; //!
 
     //Event Multiplicity Variables
     Float_t fTreeVariableCentrality; //!
-    Bool_t fTreeVariableMVPileupFlag;         //!
+    Bool_t fTreeVariableMVPileupFlag; //!
+    Bool_t fTreeVariableOOBPileupFlag; //!
 
 //===========================================================================================
 //   Variables for Cascade Candidate Tree
@@ -397,9 +448,20 @@ private:
     //Event Number (check same-event index mixups)
     ULong64_t fTreeCascVarEventNumber; //!
 
+    //Variables for OOB pileup study (high-multiplicity triggers pp 13 TeV - 2016 data)
+    Float_t fTreeCascVarNegTOFExpTDiff; //!
+    Float_t fTreeCascVarPosTOFExpTDiff; //!
+    Float_t fTreeCascVarBachTOFExpTDiff; //!
+    //Event info
+    Float_t fTreeCascVarAmplitudeV0A; //!
+    Float_t fTreeCascVarAmplitudeV0C; //!
+    Float_t fTreeCascVarNHitsFMDA; //!
+    Float_t fTreeCascVarNHitsFMDC; //!
+
     //Event Multiplicity Variables
     Float_t fTreeCascVarCentrality; //!
-    Bool_t fTreeCascVarMVPileupFlag;         //!
+    Bool_t fTreeCascVarMVPileupFlag; //!
+    Bool_t fTreeCascVarOOBPileupFlag; //!
 
 //===========================================================================================
 //   Histograms

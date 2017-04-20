@@ -53,7 +53,8 @@ class AliAnalysisTaskEHCorrel : public AliAnalysisTaskSE {
     void    GetTrkClsEtaPhiDiff(AliVTrack *t, AliVCluster *v, Double_t &phidiff, Double_t &etadiff);
     Bool_t  PassEIDCuts(AliVTrack *track, AliVCluster *clust, Bool_t &Hadtrack);
     Bool_t  PassHadronCuts(AliAODTrack *HadTrack);
-    void    HadronInfo(Int_t itrack);
+    void    HadronInfo();
+    //void    HadronInfo(Int_t itrack);
     //void    ElectronHadCorrel(Int_t itrack, AliVTrack *track, THnSparse *SparseEHCorrl, TH2F *HisDphi);
     void    ElectronHadCorrel(Int_t itrack, AliVTrack *track, THnSparse *SparseEHCorrl);
     void    ElectronHadCorrelNoPartner(Int_t itrack, Int_t jtrack, AliVTrack *track, THnSparse *SparseEHCorrlNoPartner);
@@ -93,6 +94,8 @@ class AliAnalysisTaskEHCorrel : public AliAnalysisTaskSE {
     void    SetElecSPDkFirst(Bool_t EleSPDkFirst) {fFlagEleSPDkFirst = EleSPDkFirst;};
     
     void    SetAdditionalPileUpCuts(Bool_t addpilupcuts) {fApplyAddPileUpCuts = addpilupcuts;};
+    
+    void    IsPbPb(Bool_t isPbPb) {fIsPbPb = isPbPb;};
 
   private:
     AliVEvent 		    *fVevent;//!V event object
@@ -143,6 +146,7 @@ class AliAnalysisTaskEHCorrel : public AliAnalysisTaskSE {
     Double_t            fVtxZBin;//!
     Double_t            fCentBin;//!
     Bool_t              fFlagMEBinChange;//
+    Bool_t              fIsPbPb;//
 
     TList       	   	*fOutputList;		//!output list
     TH1F                *fNevents;		//!no of events

@@ -23,6 +23,7 @@
 #include <TChain.h>
 #include <TH1D.h>
 #include <TFile.h>
+#include <TBits.h>
 
 #include <AliAnalysisTaskSE.h>
 #include <AliCFContainer.h>
@@ -123,6 +124,7 @@ AliAnalysisTaskReducedTreeMaker::AliAnalysisTaskReducedTreeMaker() :
   fTreeFile(0x0),
   fTree(0x0),
   fReducedEvent(0x0),
+  fUsedVars(0x0),
   fNevents(0)
 {
   //
@@ -178,6 +180,7 @@ AliAnalysisTaskReducedTreeMaker::AliAnalysisTaskReducedTreeMaker(const char *nam
   fTreeFile(0x0),
   fTree(0x0),
   fReducedEvent(0x0),
+  fUsedVars(0x0),
   fNevents(0)
 {
   //
@@ -257,6 +260,11 @@ void AliAnalysisTaskReducedTreeMaker::UserCreateOutputObjects()
     fBayesianResponse->SetNewTrackParam();
   }*/
   
+  // enable all variables in the VarManager
+  fUsedVars = new TBits(AliDielectronVarManager::kNMaxValues);
+  for(Int_t i=0;i<AliDielectronVarManager::kNMaxValues;++i) fUsedVars->SetBitNumber(i,kTRUE);
+  
+  
   PostData(1, fReducedEvent);
   if(fWriteTree)
     PostData(2, fTree);
@@ -322,7 +330,7 @@ void AliAnalysisTaskReducedTreeMaker::UserExec(Option_t *option)
   //bz for AliKF
   Double_t bz = InputEvent()->GetMagneticField();
   AliKFParticle::SetField( bz );
-
+  
   //Fill event wise information
   FillEventInfo();
   
@@ -371,9 +379,9 @@ void AliAnalysisTaskReducedTreeMaker::FillEventInfo()
     }
   }
   
-  Double_t values[AliDielectronVarManager::kNMaxValues];
-  AliDielectronVarManager::Fill(event, values);
-  
+  AliDielectronVarManager::SetFillMap(fUsedVars);
+  AliDielectronVarManager::SetEvent(event);
+
   if(fUseAnalysisUtils) {
     if(fAnalysisUtils->IsVertexSelected2013pA(event))  // 2013 p-Pb event selection    
       fReducedEvent->fEventTag |= (ULong64_t(1)<<0);
@@ -520,11 +528,11 @@ void AliAnalysisTaskReducedTreeMaker::FillEventInfo()
   
   if(isESD) {
     eventInfo->fEventNumberInFile = esdEvent->GetEventNumberInFile();
-    /*eventInfo->fL0TriggerInputs = esdEvent->GetHeader()->GetL0TriggerInputs();
+    eventInfo->fL0TriggerInputs = esdEvent->GetHeader()->GetL0TriggerInputs();
     eventInfo->fL1TriggerInputs = esdEvent->GetHeader()->GetL1TriggerInputs();
     eventInfo->fL2TriggerInputs = esdEvent->GetHeader()->GetL2TriggerInputs();
     eventInfo->fIRIntClosestIntMap[0] = esdEvent->GetHeader()->GetIRInt1ClosestInteractionMap();
-    eventInfo->fIRIntClosestIntMap[1] = esdEvent->GetHeader()->GetIRInt2ClosestInteractionMap(); */
+    eventInfo->fIRIntClosestIntMap[1] = esdEvent->GetHeader()->GetIRInt2ClosestInteractionMap();
     eventVtx = const_cast<AliESDVertex*>(esdEvent->GetPrimaryVertexTPC());
     if(eventVtx) {
       eventInfo->fVtxTPC[0] = ((AliESDVertex*)eventVtx)->GetX();
@@ -566,15 +574,26 @@ void AliAnalysisTaskReducedTreeMaker::FillEventInfo()
     eventInfo->fL0TriggerInputs = aodEvent->GetHeader()->GetL0TriggerInputs();
     eventInfo->fL1TriggerInputs = aodEvent->GetHeader()->GetL1TriggerInputs();
     eventInfo->fL2TriggerInputs = aodEvent->GetHeader()->GetL2TriggerInputs();
-    eventInfo->fTimeStamp     = 0;
+    eventInfo->fTimeStamp     = aodEvent->GetTimeStamp();
     eventInfo->fNpileupSPD    = aodEvent->GetNumberOfPileupVerticesSPD();
     eventInfo->fNpileupTracks = aodEvent->GetNumberOfPileupVerticesTracks();
     eventInfo->fNPMDtracks    = aodEvent->GetNPmdClusters();
-    eventInfo->fNTRDtracks    = 0;
+    eventInfo->fNTRDtracks    = aodEvent->GetNumberOfTrdTracks();
     eventInfo->fNTRDtracklets = 0;
+    eventInfo->fNTPCclusters  = aodEvent->GetNumberOfTPCClusters();
+    
+    eventVtx = const_cast<AliAODVertex*>(aodEvent->GetPrimaryVertexTPC());
+    if(eventVtx) {
+       eventInfo->fVtxTPC[0] = ((AliAODVertex*)eventVtx)->GetX();
+       eventInfo->fVtxTPC[1] = ((AliAODVertex*)eventVtx)->GetY();
+       eventInfo->fVtxTPC[2] = ((AliAODVertex*)eventVtx)->GetZ();
+       eventInfo->fNVtxTPCContributors = eventVtx->GetNContributors();
+    }
     
     for(Int_t ilayer=0; ilayer<2; ++ilayer)
       eventInfo->fSPDFiredChips[ilayer] = aodEvent->GetMultiplicity()->GetNumberOfFiredChips(ilayer);
+    for(Int_t ilayer=0; ilayer<6; ++ilayer)
+       eventInfo->fITSClusters[ilayer] = aodEvent->GetMultiplicity()->GetNumberOfITSClusters(ilayer);
     
     AliAODZDC* zdc = aodEvent->GetZDCData();
     if(zdc) {
@@ -645,14 +664,14 @@ void AliAnalysisTaskReducedTreeMaker::FillEventInfo()
   
   if(fFillEventPlaneInfo) {
     AliReducedEventPlaneInfo* ep=new AliReducedEventPlaneInfo();     
-    ep->fQvector[AliReducedEventPlaneInfo::kTPC][1][0] = values[AliDielectronVarManager::kQnTPCxH2];
-    ep->fQvector[AliReducedEventPlaneInfo::kTPC][1][1] = values[AliDielectronVarManager::kQnTPCyH2];
+    ep->fQvector[AliReducedEventPlaneInfo::kTPC][1][0] = AliDielectronVarManager::GetValue(AliDielectronVarManager::kQnTPCxH2);
+    ep->fQvector[AliReducedEventPlaneInfo::kTPC][1][1] = AliDielectronVarManager::GetValue(AliDielectronVarManager::kQnTPCyH2);
     ep->fEventPlaneStatus[AliReducedEventPlaneInfo::kTPC][1] = AliReducedEventPlaneInfo::kRecentered;
-    ep->fQvector[AliReducedEventPlaneInfo::kVZEROA][1][0] = values[AliDielectronVarManager::kQnV0AxH2];
-    ep->fQvector[AliReducedEventPlaneInfo::kVZEROA][1][1] = values[AliDielectronVarManager::kQnV0AyH2];
+    ep->fQvector[AliReducedEventPlaneInfo::kVZEROA][1][0] = AliDielectronVarManager::GetValue(AliDielectronVarManager::kQnV0AxH2);
+    ep->fQvector[AliReducedEventPlaneInfo::kVZEROA][1][1] = AliDielectronVarManager::GetValue(AliDielectronVarManager::kQnV0AyH2);
     ep->fEventPlaneStatus[AliReducedEventPlaneInfo::kVZEROA][1] = AliReducedEventPlaneInfo::kRecentered;
-    ep->fQvector[AliReducedEventPlaneInfo::kVZEROC][1][0] = values[AliDielectronVarManager::kQnV0CxH2];
-    ep->fQvector[AliReducedEventPlaneInfo::kVZEROC][1][1] = values[AliDielectronVarManager::kQnV0CyH2];
+    ep->fQvector[AliReducedEventPlaneInfo::kVZEROC][1][0] = AliDielectronVarManager::GetValue(AliDielectronVarManager::kQnV0CxH2);
+    ep->fQvector[AliReducedEventPlaneInfo::kVZEROC][1][1] = AliDielectronVarManager::GetValue(AliDielectronVarManager::kQnV0CyH2);
     ep->fEventPlaneStatus[AliReducedEventPlaneInfo::kVZEROC][1] = AliReducedEventPlaneInfo::kRecentered;
     eventInfo->SetEventPlane(ep);
   }
@@ -1006,6 +1025,8 @@ void AliAnalysisTaskReducedTreeMaker::FillTrackInfo()
        reducedParticle=new(tracks[fReducedEvent->fNtracks[1]]) AliReducedTrackInfo();
         
     Double_t values[AliDielectronVarManager::kNMaxValues];
+    // set the fill map (all 1's) for the AliDielectronVarManager
+    AliDielectronVarManager::SetFillMap(fUsedVars);
     AliDielectronVarManager::Fill(particle, values);
     
     reducedParticle->PtPhiEta(values[AliDielectronVarManager::kPt],values[AliDielectronVarManager::kPhi],values[AliDielectronVarManager::kEta]);
@@ -1102,7 +1123,7 @@ void AliAnalysisTaskReducedTreeMaker::FillTrackInfo()
     trackInfo->fTPCGeomLength = values[AliDielectronVarManager::kTPCGeomLength];
         
     trackInfo->fTOFbeta      = values[AliDielectronVarManager::kTOFbeta];
-    //trackInfo->fTOFtime      = values[AliDielectronVarManager::kTOFsignal]-pidResponse->GetTOFResponse().GetTimeZero();
+    trackInfo->fTOFtime      = values[AliDielectronVarManager::kTOFsignal]-pidResponse->GetTOFResponse().GetTimeZero();
     trackInfo->fTOFmismatchProbab = values[AliDielectronVarManager::kTOFmismProb];
     trackInfo->fTOFnSig[0]   = values[AliDielectronVarManager::kTOFnSigmaEle];
     trackInfo->fTOFnSig[1]   = values[AliDielectronVarManager::kTOFnSigmaPio];

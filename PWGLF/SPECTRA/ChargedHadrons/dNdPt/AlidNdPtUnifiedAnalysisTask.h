@@ -146,6 +146,13 @@ class AlidNdPtUnifiedAnalysisTask : public AliAnalysisTaskSE {
 
     void InitESDTrackCuts();
     void InitdNdPtEventCuts();
+    
+    
+    void SetCentralityCut(Double_t lowerCut, Double_t upperCut){fUseCentralityCut = kTRUE; fLowerCentralityBound = lowerCut; fUpperCentralityBound = upperCut;}
+    Bool_t IsSelectedCentrality();
+    
+    Bool_t fIncludeSigmas;
+    void SetIncludeSigmas(Bool_t includeSigmas){fIncludeSigmas = includeSigmas;}
 
   private:
     AliVEvent   *fEvent;			//!<! Event object (AliVEvent)
@@ -160,6 +167,10 @@ class AlidNdPtUnifiedAnalysisTask : public AliAnalysisTaskSE {
     TF1               *fFunTrkEff;
 
     TH1D* fHistV0Amp;
+    THnF* fHistMCMultPt;
+    Double_t fLowerCentralityBound;
+    Double_t fUpperCentralityBound;
+    Bool_t fUseCentralityCut;
 
     // Output Histograms
 
