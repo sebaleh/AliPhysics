@@ -91,12 +91,19 @@ makeHTMLindexPerPeriod()
 # create run tabletable
 fileName="trending.root"
 
+#for MC pass period name and pass of anchor run
+
+
+
 #make a local copy of the external dependences
 copyFileFromRemote http://tablefilter.free.fr/TableFilter/tablefilter.js .
 copyFileFromRemote http://methvin.com/splitter/splitter.js .
 
-aliroot -l -b -q $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/rootlogon.C $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/dumpTable.C+\(\"${fileName}\",\"runTable\"\)
-
+if [[ ${dataType} =~ "sim" ]]; then 
+    aliroot -l -b -q $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/rootlogon.C $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/dumpTable.C+\(\"${fileName}\",\"runTable\"\,\"${anchorper}\",\"${anchorpass}\")
+    else
+    aliroot -l -b -q $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/rootlogon.C $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/dumpTable.C+\(\"${fileName}\",\"runTable\"\)
+fi
 #
 # fill html web page
 #
