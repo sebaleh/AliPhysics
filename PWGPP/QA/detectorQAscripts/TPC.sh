@@ -30,6 +30,8 @@ runLevelQA()
   makeHTMLindexPerRun
 }
 
+
+
 periodLevelQA()
 {
   trendingFile=$1
@@ -100,10 +102,13 @@ copyFileFromRemote http://tablefilter.free.fr/TableFilter/tablefilter.js .
 copyFileFromRemote http://methvin.com/splitter/splitter.js .
 
 if [[ ${dataType} =~ "sim" ]]; then 
-    aliroot -l -b -q $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/rootlogon.C $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/dumpTable.C+\(\"${fileName}\",\"runTable\"\,\"${anchorper}\",\"${anchorpass}\")
+    aliroot -l -b -q $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/rootlogon.C $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/dumpTable.C+\(\"${fileName}\",\"runTable\"\,\"anchorper\",\"anchorpass\"\)
     else
     aliroot -l -b -q $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/rootlogon.C $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/dumpTable.C+\(\"${fileName}\",\"runTable\"\)
 fi
+
+#aliroot -l -b -q $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/rootlogon.C $ALICE_PHYSICS/PWGPP/TPC/macros/TPCQAWebpage/dumpTable.C+\(\"${fileName}\",\"runTable\"\)
+
 #
 # fill html web page
 #

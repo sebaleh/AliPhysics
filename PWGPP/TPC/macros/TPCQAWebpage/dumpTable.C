@@ -32,7 +32,7 @@ TString queryLink="";
 void initTree(const char* fname, const char* treeName);
 void initQuery();
 void dumpWebRunTable(TTree* tree, const char* tableName );
-void dumpWebPeriodTable(TTree* tree, const char* tableName);
+void dumpWebPeriodTable(TTree* tree, const char* tableName, const char* anchorper=NULL, const char* anchorpass=NULL);
 
 void dumpTable(const char *fname, const char * tableName, const char* anchorper=NULL, const char* anchorpass=NULL){
   //
@@ -42,9 +42,8 @@ void dumpTable(const char *fname, const char * tableName, const char* anchorper=
   initTree(fname,"tpcQA");
   if (!tree || tree->GetEntries()==0)  initTree(fname,"trending");
   initQuery();
-  dumpWebRunTable(tree, tableName);
-  if(anchorper==NULL)  dumpWebPeriodTable(tree, tableName);
-  else dumpWebPeriodTable(tree, tableName, anchorper, anchorpass);
+//  dumpWebRunTable(tree, tableName);
+  dumpWebPeriodTable(tree, tableName, anchorper, anchorpass);
 }
 
 void initTree(const char* fname, const char* treeName){
@@ -220,10 +219,10 @@ void dumpWebRunTable(TTree* tree, const char * tableName  ){
   fclose(fp);
 }
 
-void dumpWebPeriodTable(TTree* tree, const char * tableName, const char* anchorper=NULL, const char* anchorpass=NULL) ){
+void dumpWebPeriodTable(TTree* tree, const char * tableName, const char* anchorper, const char* anchorpass) {
   FILE * fp=0;
   fp = fopen ("treePeriodTable.inc", "w");
-  if(anchorper==NULL){
+  if(anchorper!=NULL){
   fprintf(fp, "\
   <h2 style=\"margin-bottom:3px;margin-top:3px\">TPC QA trending</h2>\n \
   <p style=\"margin-left:10px;margin-top:0px\">\n \
