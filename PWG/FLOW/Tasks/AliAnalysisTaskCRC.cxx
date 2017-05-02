@@ -131,6 +131,7 @@ fCRCVZEROCalibList(NULL),
 fCRCZDCResList(NULL),
 fZDCESEList(NULL),
 fCenWeightsHist(NULL),
+fPhiExclZoneHist(NULL),
 fQAZDCCuts(kFALSE),
 fMinMulZN(1),
 fMaxDevZN(5.),
@@ -284,6 +285,7 @@ fCRCVZEROCalibList(NULL),
 fCRCZDCResList(NULL),
 fZDCESEList(NULL),
 fCenWeightsHist(NULL),
+fPhiExclZoneHist(NULL),
 fQAZDCCuts(kFALSE),
 fMinMulZN(1),
 fMaxDevZN(5.),
@@ -427,6 +429,8 @@ void AliAnalysisTaskCRC::UserCreateOutputObjects()
     if(fPOIExtraWeights.EqualTo("EtaPhiCh")) fQC->SetPOIExtraWeights(AliFlowAnalysisCRC::kEtaPhiCh);
     if(fPOIExtraWeights.EqualTo("EtaPhiVtx")) fQC->SetPOIExtraWeights(AliFlowAnalysisCRC::kEtaPhiVtx);
     if(fPOIExtraWeights.EqualTo("EtaPhiChPt")) fQC->SetPOIExtraWeights(AliFlowAnalysisCRC::kEtaPhiChPt);
+    if(fPOIExtraWeights.EqualTo("EtaPhiRbR")) fQC->SetPOIExtraWeights(AliFlowAnalysisCRC::kEtaPhiRbR);
+    if(fPOIExtraWeights.EqualTo("EtaPhiChRbR")) fQC->SetPOIExtraWeights(AliFlowAnalysisCRC::kEtaPhiChRbR);
     // Pass the list with weights to class:
     if(fWeightsList) fQC->SetWeightsList(fWeightsList);
   }
@@ -448,6 +452,7 @@ void AliAnalysisTaskCRC::UserCreateOutputObjects()
     if(fZDCESEList) fQC->SetZDCESEList(fZDCESEList);
   }
   if(fCenWeightsHist) fQC->SetCenWeightsHist(fCenWeightsHist);
+  if(fPhiExclZoneHist) fQC->SetPhiExclZoneHist(fPhiExclZoneHist);
   if(fUsePtWeights){
     for(Int_t c=0; c<10; c++) {
       if(fPtWeightsHist[c]) fQC->SetPtWeightsHist(fPtWeightsHist[c],c);

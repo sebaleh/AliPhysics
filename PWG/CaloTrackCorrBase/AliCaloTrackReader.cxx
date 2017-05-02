@@ -133,7 +133,8 @@ fNonStandardJets(new TClonesArray("AliAODJet",100)),          fInputNonStandardJ
 fFillInputBackgroundJetBranch(kFALSE), 
 fBackgroundJets(0x0),fInputBackgroundJetBranchName("jets"),
 fAcceptEventsWithBit(0),     fRejectEventsWithBit(0),         fRejectEMCalTriggerEventsWith2Tresholds(0),
-fMomentum(),                 fOutputContainer(0x0),           fEnergyHistogramNbins(0),
+fMomentum(),                 fOutputContainer(0x0),           fhEMCALClusterTimeE(0),
+fEnergyHistogramNbins(0),
 fhNEventsAfterCut(0),        fNMCGenerToAccept(0),            fMCGenerEventHeaderToAccept("")
 {
   for(Int_t i = 0; i < 8; i++) fhEMCALClusterCutsE [i]= 0x0 ;    
@@ -728,7 +729,7 @@ TList * AliCaloTrackReader::GetCreateControlHistograms()
     for(Int_t i = 0; i < 8; i++)
     {
       TString names[] = {"NoCut", "Corrected", "GoodCluster", "NonLinearity", 
-        "EnergyAndFidutial", "Time", "NCells", "BadDist"};
+        "EnergyAndFidutial","NCells", "BadDist","Time"};
       
       fhEMCALClusterCutsE[i] = new TH1F(Form("hEMCALReaderClusterCuts_%d_%s",i,names[i].Data()),
                                         Form("EMCal %d, %s",i,names[i].Data()),   
@@ -737,6 +738,12 @@ TList * AliCaloTrackReader::GetCreateControlHistograms()
       fhEMCALClusterCutsE[i]->SetXTitle("#it{E} (GeV)");
       fOutputContainer->Add(fhEMCALClusterCutsE[i]);
     }
+    
+    fhEMCALClusterTimeE  = new TH2F 
+    ("hEMCALReaderTimeE","time vs #it{E} after cuts (if no calib, shifted -615 ns)", 100,0,100,400,-400,400);
+    fhEMCALClusterTimeE->SetXTitle("#it{E} (GeV)");
+    fhEMCALClusterTimeE->SetYTitle("#it{time} (ns)");
+    fOutputContainer->Add(fhEMCALClusterTimeE);
   }
   
   if(fFillPHOS)
@@ -1836,7 +1843,7 @@ void AliCaloTrackReader::FillInputCTS()
     else      fVertexBC = AliVTrack::kTOFBCNA ;
   }
   
-  AliDebug(1,Form("AOD entries %d, input tracks %d, pass status %d, multipliticy %d", fCTSTracks->GetEntriesFast(), nTracks, nstatus, fTrackMult[0]));//fCTSTracksNormalInputEntries);
+  AliDebug(1,Form("CTS entries %d, input tracks %d, pass status %d, multipliticy %d", fCTSTracks->GetEntriesFast(), nTracks, nstatus, fTrackMult[0]));//fCTSTracksNormalInputEntries);
 }
 
 //_______________________________________________________________________________
@@ -1860,7 +1867,7 @@ void AliCaloTrackReader::FillInputCTS()
 //_______________________________________________________________________________
 void AliCaloTrackReader::FillInputEMCALAlgorithm(AliVCluster * clus, Int_t iclus)
 {
-  // Accept clusters with the proper label
+  // Accept clusters with the proper label, only applicable for MC
   if ( clus->GetLabel() >= 0 )  // -1 corresponds to noisy MC
   { 
     if ( !AcceptParticleMCLabel(clus->GetLabel()) ) return ;
@@ -1952,7 +1959,7 @@ void AliCaloTrackReader::FillInputEMCALAlgorithm(AliVCluster * clus, Int_t iclus
   if(!goodCluster)
   {
     //if( (fDebug > 2 && fMomentum.E() > 0.1) || fDebug > 10 )
-    AliDebug(2,Form("Bad cluster E %3.2f, pt %3.2f, phi %3.2f deg, eta %3.2f",
+    AliDebug(1,Form("Bad cluster E %3.2f, pt %3.2f, phi %3.2f deg, eta %3.2f",
                     fMomentum.E(),fMomentum.Pt(),RadToDeg(GetPhi(fMomentum.Phi())),fMomentum.Eta()));
 
     return;
@@ -2043,37 +2050,13 @@ void AliCaloTrackReader::FillInputEMCALAlgorithm(AliVCluster * clus, Int_t iclus
   // Check effect of energy and fiducial cuts
   fhEMCALClusterCutsE[4]->Fill(clus->E());
   
-  
-  //------------------------------------------
-  // Apply time cut, count EMCal BC before cut
-  //
-  SetEMCalEventBCcut(bc);
-  
-  if(!IsInTimeWindow(tof,clus->E()))
-  {
-    fNPileUpClusters++ ;
-    if(fUseEMCALTimeCut) 
-    {
-      AliDebug(2,Form("Out of time window E %3.2f, pt %3.2f, phi %3.2f deg, eta %3.2f, time %e",
-                      fMomentum.E(),fMomentum.Pt(),RadToDeg(GetPhi(fMomentum.Phi())),fMomentum.Eta(),tof));
-
-      return ;
-    }
-  }
-  else
-    fNNonPileUpClusters++;
-    
-  // Check effect of time cut
-  fhEMCALClusterCutsE[5]->Fill(clus->E());
-  
-  
   //----------------------------------------------------
   // Apply N cells cut
   //
   if(clus->GetNCells() <= fEMCALNCellsCut && fDataType != AliCaloTrackReader::kMC) return ;
 
   // Check effect of n cells cut
-  fhEMCALClusterCutsE[6]->Fill(clus->E());
+  fhEMCALClusterCutsE[5]->Fill(clus->E());
 
   //----------------------------------------------------
   // Apply distance to bad channel cut
@@ -2085,8 +2068,36 @@ void AliCaloTrackReader::FillInputEMCALAlgorithm(AliVCluster * clus, Int_t iclus
   if(distBad < fEMCALBadChMinDist) return  ;
   
   // Check effect distance to bad channel cut
+  fhEMCALClusterCutsE[6]->Fill(clus->E());
+
+  //------------------------------------------
+  // Apply time cut, count EMCal BC before cut
+  //
+  SetEMCalEventBCcut(bc);
+
+  // Shift time in case of no calibration with rough factor
+  Double_t tofShift = tof;
+  if(tof > 400) tofShift-=615;
+  fhEMCALClusterTimeE->Fill(clus->E(),tofShift);
+  
+  if(!IsInTimeWindow(tof,clus->E()))
+  {
+    fNPileUpClusters++ ;
+    if(fUseEMCALTimeCut) 
+    {
+      AliDebug(2,Form("Out of time window E %3.2f, pt %3.2f, phi %3.2f deg, eta %3.2f, time %e",
+                      fMomentum.E(),fMomentum.Pt(),RadToDeg(GetPhi(fMomentum.Phi())),fMomentum.Eta(),tof));
+      
+      return ;
+    }
+  }
+  else
+    fNNonPileUpClusters++;
+  
+  // Check effect of time cut
   fhEMCALClusterCutsE[7]->Fill(clus->E());
 
+  
   //----------------------------------------------------
   // Smear the SS to try to match data and simulations,
   // do it only for simulations.
@@ -2270,7 +2281,10 @@ void AliCaloTrackReader::FillInputEMCAL()
     
   }
   
-  AliDebug(1,Form("AOD entries %d, n pile-up clusters %d, n non pile-up %d", fEMCALClusters->GetEntriesFast(),fNPileUpClusters,fNNonPileUpClusters));
+  AliDebug(1,Form("EMCal selected clusters %d", 
+                  fEMCALClusters->GetEntriesFast()));
+  AliDebug(2,Form("\t n pile-up clusters %d, n non pile-up %d", 
+                  fNPileUpClusters,fNNonPileUpClusters));
 }
 
 //_______________________________________
@@ -2389,7 +2403,7 @@ void AliCaloTrackReader::FillInputPHOS()
     
   } // esd/aod cluster loop
   
-  AliDebug(1,Form("AOD entries %d",fPHOSClusters->GetEntriesFast())) ;  
+  AliDebug(1,Form("PHOS selected clusters %d",fPHOSClusters->GetEntriesFast())) ;  
 }
 
 //____________________________________________
@@ -2996,10 +3010,15 @@ void AliCaloTrackReader::SetEMCALTriggerThresholds()
   { 
     // Revise for periods > LHC11d 
     Int_t runNumber = fInputEvent->GetRunNumber();
-    if     (runNumber < 146861) fTriggerL0EventThreshold = 3. ;
-    else if(runNumber < 154000) fTriggerL0EventThreshold = 4. ;
-    else if(runNumber < 165000) fTriggerL0EventThreshold = 5.5;
-    else                        fTriggerL0EventThreshold = 2  ;
+    if     (runNumber < 146861) fTriggerL0EventThreshold = 3. ;  // LHC11a
+    else if(runNumber < 154000) fTriggerL0EventThreshold = 4. ;  // LHC11b,c
+    else if(runNumber < 165000) fTriggerL0EventThreshold = 5.5;  // LHC11c,d,e
+    else if(runNumber < 194000) fTriggerL0EventThreshold = 2  ;  // LHC12
+    else if(runNumber < 197400) fTriggerL0EventThreshold = 3  ;  // LHC13def 
+    else if(runNumber < 197400) fTriggerL0EventThreshold = 2  ;  // LHC13g 
+    else if(runNumber < 244300) fTriggerL0EventThreshold = 5  ;  // LHC15 in, phys 1, 5 in phys2 
+    else if(runNumber < 266400) fTriggerL0EventThreshold = 2.5;  // LHC16ir 
+    else                        fTriggerL0EventThreshold = 3.5;  // LHC16s 
   }  
 }
 

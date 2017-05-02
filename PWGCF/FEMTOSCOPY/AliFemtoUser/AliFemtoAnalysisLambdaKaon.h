@@ -102,6 +102,7 @@ struct AnalysisParams
   bool monitorPart1CutPassOnly;
   bool monitorPart2CutPassOnly;
   bool monitorPairCutPassOnly;
+  bool useMCWeightGenerator;
 };
 
 struct EventCutParams
@@ -274,6 +275,8 @@ struct PairCutParams
 
   double minAvgSepTrackPos,  // Set these for V0-PosTrack; V0-NegTrack, AntiV0-Pos, etc. cases
          minAvgSepTrackNeg;  // will automatically be handled by AliFemtoAnalysisLambdaKaon::CreateV0TrackPairCut
+
+  double minAvgSepTrackBacPion;
 };
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------

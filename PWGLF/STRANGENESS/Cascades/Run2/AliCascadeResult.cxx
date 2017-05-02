@@ -387,7 +387,7 @@ fCutVarBBCosPA_Const(lCopyMe.fCutVarBBCosPA_Const)
 //________________________________________________________________
 AliCascadeResult::AliCascadeResult(AliCascadeResult *lCopyMe, TString lNewName)
     : AliVWeakResult(*lCopyMe),
-      fHisto(0)
+      fHisto(0), fProtonProfile(0)
 {
     SetName(lNewName.Data());
     fMassHypo = lCopyMe->GetMassHypothesis();
@@ -603,6 +603,10 @@ Long64_t AliCascadeResult::Merge(TCollection *hlist)
             }
             //... if all fine, add this histogram
             GetHistogram()->Add(xh->GetHistogram());
+            
+            //... if proton profiles are both defined, merge that as well, please
+            if ( fProtonProfile && xh->GetProtonProfileToCopy() )
+                GetProtonProfile()->Add(xh->GetProtonProfile());
         }
     }
     return (Long64_t) GetHistogram()->GetEntries();
