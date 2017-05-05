@@ -23,12 +23,12 @@
 //---- AliRoot system ----
 #include "AliAnaCalorimeterQA.h"
 #include "AliCaloTrackReader.h"
-#include "AliStack.h"
 #include "AliVCaloCells.h"
 #include "AliFiducialCut.h"
 #include "AliVCluster.h"
 #include "AliVTrack.h"
 #include "AliVEvent.h"
+#include "AliMCEvent.h"
 #include "AliVEventHandler.h"
 #include "AliAODMCParticle.h"
 #include "AliMCAnalysisUtils.h"
@@ -2525,15 +2525,7 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
   }
   
   AliDebug(1,Form("Primaries: nlabels %d",nLabels));
-  
-  Float_t e   = fClusterMomentum.E();
-  Float_t eta = fClusterMomentum.Eta();
-  Float_t phi = fClusterMomentum.Phi();
-  if(phi < 0) phi +=TMath::TwoPi();
-  
-  AliAODMCParticle * aodprimary  = 0x0;
-  TParticle * primary = 0x0;
-  
+    
   // Play with the MC stack if available
   Int_t label = labels[0];
   
@@ -2543,6 +2535,20 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
     return kFALSE;
   }
   
+  if( label >= GetMC()->GetNumberOfTracks()) 
+  {
+    AliDebug(1,Form("*** large label ***:  label %d, n tracks %d", label, GetMC()->GetNumberOfTracks()));
+    return kFALSE;
+  }
+
+  Float_t e   = fClusterMomentum.E();
+  Float_t eta = fClusterMomentum.Eta();
+  Float_t phi = fClusterMomentum.Phi();
+  if(phi < 0) phi +=TMath::TwoPi();
+  
+  AliAODMCParticle * aodprimary  = 0x0;
+  TParticle * primary = 0x0;
+
   Int_t pdg0    =-1; Int_t status = -1; Int_t iMother = -1; Int_t iParent = -1;
   Float_t vxMC  = 0; Float_t vyMC  = 0;
   Float_t eMC   = 0; //Float_t ptMC= 0;
@@ -2554,15 +2560,8 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
   
   if     ( GetReader()->ReadStack() && 
           !GetMCAnalysisUtils()->CheckTagBit(tag, AliMCAnalysisUtils::kMCUnknown))
-  { // If MC stack and known tag
-    
-    if( label >= GetMCStack()->GetNtrack()) 
-    {
-      AliDebug(1,Form("*** large label ***:  label %d, n tracks %d", label, GetMCStack()->GetNtrack()));
-      return kFALSE;
-    }
-    
-    primary = GetMCStack()->Particle(label);
+  { 
+    primary = GetMC()->Particle(label);
     iMother = label;
     pdg0    = TMath::Abs(primary->GetPdgCode());
     pdg     = pdg0;
@@ -2574,12 +2573,11 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
     AliDebug(1,"Cluster most contributing mother:");
     AliDebug(1,Form("\t Mother label %d, pdg %d, %s, status %d, parent %d",iMother, pdg0, primary->GetName(),status, iParent));
     
-    
     // Get final particle, no conversion products
     if(GetMCAnalysisUtils()->CheckTagBit(tag, AliMCAnalysisUtils::kMCConversion))
     {
       // Get the parent
-      primary = GetMCStack()->Particle(iParent);
+      primary = GetMC()->Particle(iParent);
       pdg = TMath::Abs(primary->GetPdgCode());
       
       AliDebug(2,"Converted cluster!. Find before conversion:");
@@ -2588,7 +2586,7 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
       {
         Int_t iMotherOrg = iMother;
         iMother = iParent;
-        primary = GetMCStack()->Particle(iMother);
+        primary = GetMC()->Particle(iMother);
         status  = primary->GetStatusCode();
         pdg     = TMath::Abs(primary->GetPdgCode());
         iParent = primary->GetFirstMother();
@@ -2597,7 +2595,7 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
         // there are other possible decays, ignore them for the moment
         if(pdg==111 || pdg==221)
         {
-          primary = GetMCStack()->Particle(iMotherOrg);
+          primary = GetMC()->Particle(iMotherOrg);
           break;
         }
         
@@ -2623,9 +2621,9 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
 
       while(pdg != 111 && pdg != 221)
       {     
-        //printf("iMother %d, pdg %d, iParent %d, pdg %d\n",iMother,pdg,iParent,GetMCStack()->Particle(iParent)->GetPdgCode());
+        //printf("iMother %d, pdg %d, iParent %d, pdg %d\n",iMother,pdg,iParent,GetMC()->Particle(iParent)->GetPdgCode());
         iMother = iParent;
-        primary = GetMCStack()->Particle(iMother);
+        primary = GetMC()->Particle(iMother);
         status  = primary->GetStatusCode();
         pdg     = TMath::Abs(primary->GetPdgCode());
         iParent = primary->GetFirstMother();
@@ -2654,13 +2652,8 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
   }
   else if( GetReader()->ReadAODMCParticles() && 
           !GetMCAnalysisUtils()->CheckTagBit(tag, AliMCAnalysisUtils::kMCUnknown))
-  {
-    // If MC AOD and known tag
-    // Get the list of MC particles
-    if(!GetReader()->GetAODMCParticles())
-      AliFatal("MCParticles not available!");
-    
-    aodprimary = (AliAODMCParticle*) (GetReader()->GetAODMCParticles())->At(label);
+  {    
+    aodprimary = (AliAODMCParticle*) GetMC()->GetTrack(label);
     iMother = label;
     pdg0    = TMath::Abs(aodprimary->GetPdgCode());
     pdg     = pdg0;
@@ -2679,14 +2672,14 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
       AliDebug(2,"Converted cluster!. Find before conversion:");
       
       // Get the parent
-      aodprimary = (AliAODMCParticle*)(GetReader()->GetAODMCParticles())->At(iParent);
+      aodprimary = (AliAODMCParticle*) GetMC()->GetTrack(iParent);
       pdg = TMath::Abs(aodprimary->GetPdgCode());
         
       while ((pdg == 22 || pdg == 11) && !aodprimary->IsPhysicalPrimary()) 
       {
         Int_t iMotherOrg = iMother;
         iMother    = iParent;
-        aodprimary = (AliAODMCParticle*)(GetReader()->GetAODMCParticles())->At(iMother);
+        aodprimary = (AliAODMCParticle*) GetMC()->GetTrack(iMother);
         status     = aodprimary->IsPrimary();
         iParent    = aodprimary->GetMother();
         pdg        = TMath::Abs(aodprimary->GetPdgCode());
@@ -2695,7 +2688,7 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
         // there are other possible decays, ignore them for the moment
         if( pdg == 111 || pdg == 221 )
         {
-          aodprimary = (AliAODMCParticle*)(GetReader()->GetAODMCParticles())->At(iMotherOrg);
+          aodprimary = (AliAODMCParticle*) GetMC()->GetTrack(iMotherOrg);
           break;
         }        
         
@@ -2724,7 +2717,7 @@ Bool_t AliAnaCalorimeterQA::ClusterMCHistograms(Bool_t matched,const Int_t * lab
       while(pdg != 111 && pdg != 221)
       {
         iMother    = iParent;
-        aodprimary = (AliAODMCParticle*)(GetReader()->GetAODMCParticles())->At(iMother);
+        aodprimary = (AliAODMCParticle*) GetMC()->GetTrack(iMother);
         status     = aodprimary->IsPrimary();
         iParent    = aodprimary->GetMother();
         pdg        = TMath::Abs(aodprimary->GetPdgCode());
@@ -6389,62 +6382,6 @@ TList * AliAnaCalorimeterQA::GetCreateOutputObjects()
       "Photon",        "Pi0",         "Eta",
       "Electron",      "PhotonConv",
       "NeutralHadron", "ChargedHadron"      };
-
-    for(Int_t iPart = 0; iPart < 7; iPart++)
-    {
-      for(Int_t iCh = 0; iCh < 2; iCh++)
-      {
-        fhRecoMCRatioE[iPart][iCh]  = new TH2F (Form("hRecoMCRatioE_%s_Match%d",particleName[iPart].Data(),iCh),
-                                                Form("Reconstructed/Generated E, %s, Matched %d",particleName[iPart].Data(),iCh), 
-                                                nptbins, ptmin, ptmax, 200,0,2); 
-        fhRecoMCRatioE[iPart][iCh]->SetYTitle("#it{E}_{reconstructed}/#it{E}_{generated}");
-        fhRecoMCRatioE[iPart][iCh]->SetXTitle("#it{E}_{reconstructed} (GeV)");
-        outputContainer->Add(fhRecoMCRatioE[iPart][iCh]);
-        
-        
-        fhRecoMCDeltaE[iPart][iCh]  = new TH2F (Form("hRecoMCDeltaE_%s_Match%d",particleName[iPart].Data(),iCh),
-                                                Form("Generated - Reconstructed E, %s, Matched %d",particleName[iPart].Data(),iCh), 
-                                                nptbins, ptmin, ptmax, nptbins*2,-ptmax,ptmax); 
-        fhRecoMCDeltaE[iPart][iCh]->SetYTitle("#Delta #it{E} (GeV)");
-        fhRecoMCDeltaE[iPart][iCh]->SetXTitle("#it{E}_{reconstructed} (GeV)");
-        outputContainer->Add(fhRecoMCDeltaE[iPart][iCh]);
-        
-        fhRecoMCDeltaPhi[iPart][iCh]  = new TH2F (Form("hRecoMCDeltaPhi_%s_Match%d",particleName[iPart].Data(),iCh),
-                                                  Form("Generated - Reconstructed #varphi, %s, Matched %d",particleName[iPart].Data(),iCh),
-                                                  nptbins, ptmin, ptmax, nphibins*2,-phimax,phimax); 
-        fhRecoMCDeltaPhi[iPart][iCh]->SetYTitle("#Delta #varphi (rad)");
-        fhRecoMCDeltaPhi[iPart][iCh]->SetXTitle("#it{E}_{reconstructed} (GeV)");
-        outputContainer->Add(fhRecoMCDeltaPhi[iPart][iCh]);
-        
-        fhRecoMCDeltaEta[iPart][iCh]  = new TH2F (Form("hRecoMCDeltaEta_%s_Match%d",particleName[iPart].Data(),iCh),
-                                                  Form("Generated - Reconstructed #eta, %s, Matched %d",particleName[iPart].Data(),iCh),
-                                                  nptbins, ptmin, ptmax,netabins*2,-etamax,etamax); 
-        fhRecoMCDeltaEta[iPart][iCh]->SetYTitle("#Delta #eta ");
-        fhRecoMCDeltaEta[iPart][iCh]->SetXTitle("#it{E}_{reconstructed} (GeV)");
-        outputContainer->Add(fhRecoMCDeltaEta[iPart][iCh]);
-        
-        fhRecoMCE[iPart][iCh]  = new TH2F (Form("hRecoMCE_%s_Match%d",particleName[iPart].Data(),iCh),
-                                           Form("#it{E} distribution, reconstructed vs generated, %s, Matched %d",particleName[iPart].Data(),iCh),
-                                           nptbins,ptmin,ptmax,nptbins,ptmin,ptmax); 
-        fhRecoMCE[iPart][iCh]->SetXTitle("#it{E}_{rec} (GeV)");
-        fhRecoMCE[iPart][iCh]->SetYTitle("#it{E}_{gen} (GeV)");
-        outputContainer->Add(fhRecoMCE[iPart][iCh]);	  
-        
-        fhRecoMCPhi[iPart][iCh]  = new TH2F (Form("hRecoMCPhi_%s_Match%d",particleName[iPart].Data(),iCh),
-                                             Form("#varphi distribution, reconstructed vs generated, %s, Matched %d",particleName[iPart].Data(),iCh),
-                                             nphibins,phimin,phimax, nphibins,phimin,phimax); 
-        fhRecoMCPhi[iPart][iCh]->SetXTitle("#varphi_{reconstructed} (rad)");
-        fhRecoMCPhi[iPart][iCh]->SetYTitle("#varphi_{generated} (rad)");
-        outputContainer->Add(fhRecoMCPhi[iPart][iCh]);
-        
-        fhRecoMCEta[iPart][iCh]  = new TH2F (Form("hRecoMCEta_%s_Match%d",particleName[iPart].Data(),iCh),
-                                             Form("#eta distribution, reconstructed vs generated, %s, Matched %d",particleName[iPart].Data(),iCh), 
-                                             netabins,etamin,etamax,netabins,etamin,etamax); 
-        fhRecoMCEta[iPart][iCh]->SetXTitle("#eta_{reconstructed} ");
-        fhRecoMCEta[iPart][iCh]->SetYTitle("#eta_{generated} ");
-        outputContainer->Add(fhRecoMCEta[iPart][iCh]);
-      }
-    }  
     
     // Pure MC
     
@@ -6493,103 +6430,162 @@ TList * AliAnaCalorimeterQA::GetCreateOutputObjects()
       
     }    
     
-    // Vertex of generated particles
-    
-    fhEMVxyz  = new TH2F ("hEMVxyz","Production vertex of reconstructed ElectroMagnetic particles",nvdistbins,vdistmin,vdistmax,nvdistbins,vdistmin,vdistmax);//,100,0,500); 
-    fhEMVxyz->SetXTitle("#it{v}_{x}");
-    fhEMVxyz->SetYTitle("#it{v}_{y}");
-    //fhEMVxyz->SetZTitle("v_{z}");
-    outputContainer->Add(fhEMVxyz);
-    
-    fhHaVxyz  = new TH2F ("hHaVxyz","Production vertex of reconstructed hadrons",nvdistbins,vdistmin,vdistmax,nvdistbins,vdistmin,vdistmax);//,100,0,500); 
-    fhHaVxyz->SetXTitle("#it{v}_{x}");
-    fhHaVxyz->SetYTitle("#it{v}_{y}");
-    //fhHaVxyz->SetZTitle("v_{z}");
-    outputContainer->Add(fhHaVxyz);
-    
-    fhEMR  = new TH2F ("hEMR","Distance to production vertex of reconstructed ElectroMagnetic particles vs E rec",nptbins,ptmin,ptmax,nvdistbins,vdistmin,vdistmax); 
-    fhEMR->SetXTitle("#it{E} (GeV)");
-    fhEMR->SetYTitle("TMath::Sqrt(v_{x}^{2}+v_{y}^{2})");
-    outputContainer->Add(fhEMR);
-    
-    fhHaR  = new TH2F ("hHaR","Distance to production vertex of reconstructed Hadrons vs E rec",nptbins,ptmin,ptmax,nvdistbins,vdistmin,vdistmax); 
-    fhHaR->SetXTitle("#it{E} (GeV)");
-    fhHaR->SetYTitle("TMath::Sqrt(v_{x}^{2}+v_{y}^{2})");
-    outputContainer->Add(fhHaR);
-    
-    // Track Matching
-    
-    fhMCEle1EOverP = new TH2F("hMCEle1EOverP","TRACK matches #it{E}/#it{p}, MC electrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCEle1EOverP->SetYTitle("#it{E}/#it{p}");
-    fhMCEle1EOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCEle1EOverP);
-    
-    fhMCEle1dR = new TH1F("hMCEle1dR","TRACK matches dR, MC electrons",ndRbins,dRmin,dRmax);
-    fhMCEle1dR->SetXTitle("#Delta #it{R} (rad)");
-    outputContainer->Add(fhMCEle1dR) ;
-    
-    fhMCEle2MatchdEdx = new TH2F("hMCEle2MatchdEdx","#it{dE/dx} vs. #it{p} for all matches, MC electrons",nptbins,ptmin,ptmax,ndedxbins,dedxmin,dedxmax);
-    fhMCEle2MatchdEdx->SetXTitle("#it{p} (GeV/#it{c})");
-    fhMCEle2MatchdEdx->SetYTitle("<#it{dE/dx}>");
-    outputContainer->Add(fhMCEle2MatchdEdx);
-    
-    fhMCChHad1EOverP = new TH2F("hMCChHad1EOverP","TRACK matches #it{E}/#it{p}, MC charged hadrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCChHad1EOverP->SetYTitle("#it{E}/#it{p}");
-    fhMCChHad1EOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCChHad1EOverP);
-    
-    fhMCChHad1dR = new TH1F("hMCChHad1dR","TRACK matches dR, MC charged hadrons",ndRbins,dRmin,dRmax);
-    fhMCChHad1dR->SetXTitle("#Delta R (rad)");
-    outputContainer->Add(fhMCChHad1dR) ;
-    
-    fhMCChHad2MatchdEdx = new TH2F("hMCChHad2MatchdEdx","#it{dE/dx} vs. #it{p} for all matches, MC charged hadrons",nptbins,ptmin,ptmax,ndedxbins,dedxmin,dedxmax);
-    fhMCChHad2MatchdEdx->SetXTitle("#it{p} (GeV/#it{c})");
-    fhMCChHad2MatchdEdx->SetYTitle("#it{dE/dx}>");
-    outputContainer->Add(fhMCChHad2MatchdEdx);
-    
-    fhMCNeutral1EOverP = new TH2F("hMCNeutral1EOverP","TRACK matches #it{E}/#it{p}, MC neutrals",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCNeutral1EOverP->SetYTitle("#it{E}/#it{p}");
-    fhMCNeutral1EOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCNeutral1EOverP);
-    
-    fhMCNeutral1dR = new TH1F("hMCNeutral1dR","TRACK matches dR, MC neutrals",ndRbins,dRmin,dRmax);
-    fhMCNeutral1dR->SetXTitle("#Delta #it{R} (rad)");
-    outputContainer->Add(fhMCNeutral1dR) ;
-    
-    fhMCNeutral2MatchdEdx = new TH2F("hMCNeutral2MatchdEdx","#it{dE/dx} vs. #it{p} for all matches, MC neutrals",nptbins,ptmin,ptmax,ndedxbins,dedxmin,dedxmax);
-    fhMCNeutral2MatchdEdx->SetXTitle("#it{p} (GeV/#it{c})");
-    fhMCNeutral2MatchdEdx->SetYTitle("#it{dE/dx}>");
-    outputContainer->Add(fhMCNeutral2MatchdEdx);
-    
-    fhMCEle1EOverPR02 = new TH2F("hMCEle1EOverPR02","TRACK matches #it{E}/#it{p}, MC electrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCEle1EOverPR02->SetYTitle("#it{E}/#it{p}");
-    fhMCEle1EOverPR02->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCEle1EOverPR02);
-    
-    fhMCChHad1EOverPR02 = new TH2F("hMCChHad1EOverPR02","TRACK matches #it{E}/#it{p}, MC charged hadrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCChHad1EOverPR02->SetYTitle("#it{E}/#it{p}");
-    fhMCChHad1EOverPR02->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCChHad1EOverPR02);
-    
-    fhMCNeutral1EOverPR02 = new TH2F("hMCNeutral1EOverPR02","TRACK matches #it{E}/#it{p}, MC neutrals",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCNeutral1EOverPR02->SetYTitle("#it{E}/#it{p}");
-    fhMCNeutral1EOverPR02->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCNeutral1EOverPR02);
-    
-    fhMCEle1EleEOverP = new TH2F("hMCEle1EleEOverP","Electron candidates #it{E}/#it{p} (60<dEdx<100), MC electrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCEle1EleEOverP->SetYTitle("#it{E}/#it{p}");
-    fhMCEle1EleEOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCEle1EleEOverP);
-    
-    fhMCChHad1EleEOverP = new TH2F("hMCEle1EleEOverP","Electron candidates #it{E}/#it{p} (60<dEdx<100), MC charged hadrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCChHad1EleEOverP->SetYTitle("#it{E}/#it{p}");
-    fhMCChHad1EleEOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCChHad1EleEOverP);
-    
-    fhMCNeutral1EleEOverP = new TH2F("hMCNeutral1EleEOverP","Electron candidates #it{E}/#it{p} (60<dEdx<100), MC neutrals",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
-    fhMCNeutral1EleEOverP->SetYTitle("#it{E}/#it{p}");
-    fhMCNeutral1EleEOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
-    outputContainer->Add(fhMCNeutral1EleEOverP);
+    if(fFillAllClusterHistograms)
+    {
+      for(Int_t iPart = 0; iPart < 7; iPart++)
+      {
+        for(Int_t iCh = 0; iCh < 2; iCh++)
+        {
+          fhRecoMCRatioE[iPart][iCh]  = new TH2F (Form("hRecoMCRatioE_%s_Match%d",particleName[iPart].Data(),iCh),
+                                                  Form("Reconstructed/Generated E, %s, Matched %d",particleName[iPart].Data(),iCh), 
+                                                  nptbins, ptmin, ptmax, 200,0,2); 
+          fhRecoMCRatioE[iPart][iCh]->SetYTitle("#it{E}_{reconstructed}/#it{E}_{generated}");
+          fhRecoMCRatioE[iPart][iCh]->SetXTitle("#it{E}_{reconstructed} (GeV)");
+          outputContainer->Add(fhRecoMCRatioE[iPart][iCh]);
+          
+          
+          fhRecoMCDeltaE[iPart][iCh]  = new TH2F (Form("hRecoMCDeltaE_%s_Match%d",particleName[iPart].Data(),iCh),
+                                                  Form("Generated - Reconstructed E, %s, Matched %d",particleName[iPart].Data(),iCh), 
+                                                  nptbins, ptmin, ptmax, nptbins*2,-ptmax,ptmax); 
+          fhRecoMCDeltaE[iPart][iCh]->SetYTitle("#Delta #it{E} (GeV)");
+          fhRecoMCDeltaE[iPart][iCh]->SetXTitle("#it{E}_{reconstructed} (GeV)");
+          outputContainer->Add(fhRecoMCDeltaE[iPart][iCh]);
+          
+          fhRecoMCDeltaPhi[iPart][iCh]  = new TH2F (Form("hRecoMCDeltaPhi_%s_Match%d",particleName[iPart].Data(),iCh),
+                                                    Form("Generated - Reconstructed #varphi, %s, Matched %d",particleName[iPart].Data(),iCh),
+                                                    nptbins, ptmin, ptmax, nphibins*2,-phimax,phimax); 
+          fhRecoMCDeltaPhi[iPart][iCh]->SetYTitle("#Delta #varphi (rad)");
+          fhRecoMCDeltaPhi[iPart][iCh]->SetXTitle("#it{E}_{reconstructed} (GeV)");
+          outputContainer->Add(fhRecoMCDeltaPhi[iPart][iCh]);
+          
+          fhRecoMCDeltaEta[iPart][iCh]  = new TH2F (Form("hRecoMCDeltaEta_%s_Match%d",particleName[iPart].Data(),iCh),
+                                                    Form("Generated - Reconstructed #eta, %s, Matched %d",particleName[iPart].Data(),iCh),
+                                                    nptbins, ptmin, ptmax,netabins*2,-etamax,etamax); 
+          fhRecoMCDeltaEta[iPart][iCh]->SetYTitle("#Delta #eta ");
+          fhRecoMCDeltaEta[iPart][iCh]->SetXTitle("#it{E}_{reconstructed} (GeV)");
+          outputContainer->Add(fhRecoMCDeltaEta[iPart][iCh]);
+          
+          fhRecoMCE[iPart][iCh]  = new TH2F (Form("hRecoMCE_%s_Match%d",particleName[iPart].Data(),iCh),
+                                             Form("#it{E} distribution, reconstructed vs generated, %s, Matched %d",particleName[iPart].Data(),iCh),
+                                             nptbins,ptmin,ptmax,nptbins,ptmin,ptmax); 
+          fhRecoMCE[iPart][iCh]->SetXTitle("#it{E}_{rec} (GeV)");
+          fhRecoMCE[iPart][iCh]->SetYTitle("#it{E}_{gen} (GeV)");
+          outputContainer->Add(fhRecoMCE[iPart][iCh]);	  
+          
+          fhRecoMCPhi[iPart][iCh]  = new TH2F (Form("hRecoMCPhi_%s_Match%d",particleName[iPart].Data(),iCh),
+                                               Form("#varphi distribution, reconstructed vs generated, %s, Matched %d",particleName[iPart].Data(),iCh),
+                                               nphibins,phimin,phimax, nphibins,phimin,phimax); 
+          fhRecoMCPhi[iPart][iCh]->SetXTitle("#varphi_{reconstructed} (rad)");
+          fhRecoMCPhi[iPart][iCh]->SetYTitle("#varphi_{generated} (rad)");
+          outputContainer->Add(fhRecoMCPhi[iPart][iCh]);
+          
+          fhRecoMCEta[iPart][iCh]  = new TH2F (Form("hRecoMCEta_%s_Match%d",particleName[iPart].Data(),iCh),
+                                               Form("#eta distribution, reconstructed vs generated, %s, Matched %d",particleName[iPart].Data(),iCh), 
+                                               netabins,etamin,etamax,netabins,etamin,etamax); 
+          fhRecoMCEta[iPart][iCh]->SetXTitle("#eta_{reconstructed} ");
+          fhRecoMCEta[iPart][iCh]->SetYTitle("#eta_{generated} ");
+          outputContainer->Add(fhRecoMCEta[iPart][iCh]);
+        }
+      }  
+
+      // Vertex of generated particles
+      
+      fhEMVxyz  = new TH2F ("hEMVxyz","Production vertex of reconstructed ElectroMagnetic particles",nvdistbins,vdistmin,vdistmax,nvdistbins,vdistmin,vdistmax);//,100,0,500); 
+      fhEMVxyz->SetXTitle("#it{v}_{x}");
+      fhEMVxyz->SetYTitle("#it{v}_{y}");
+      //fhEMVxyz->SetZTitle("v_{z}");
+      outputContainer->Add(fhEMVxyz);
+      
+      fhHaVxyz  = new TH2F ("hHaVxyz","Production vertex of reconstructed hadrons",nvdistbins,vdistmin,vdistmax,nvdistbins,vdistmin,vdistmax);//,100,0,500); 
+      fhHaVxyz->SetXTitle("#it{v}_{x}");
+      fhHaVxyz->SetYTitle("#it{v}_{y}");
+      //fhHaVxyz->SetZTitle("v_{z}");
+      outputContainer->Add(fhHaVxyz);
+      
+      fhEMR  = new TH2F ("hEMR","Distance to production vertex of reconstructed ElectroMagnetic particles vs E rec",nptbins,ptmin,ptmax,nvdistbins,vdistmin,vdistmax); 
+      fhEMR->SetXTitle("#it{E} (GeV)");
+      fhEMR->SetYTitle("TMath::Sqrt(v_{x}^{2}+v_{y}^{2})");
+      outputContainer->Add(fhEMR);
+      
+      fhHaR  = new TH2F ("hHaR","Distance to production vertex of reconstructed Hadrons vs E rec",nptbins,ptmin,ptmax,nvdistbins,vdistmin,vdistmax); 
+      fhHaR->SetXTitle("#it{E} (GeV)");
+      fhHaR->SetYTitle("TMath::Sqrt(v_{x}^{2}+v_{y}^{2})");
+      outputContainer->Add(fhHaR);
+      
+      // Track Matching
+      
+      fhMCEle1EOverP = new TH2F("hMCEle1EOverP","TRACK matches #it{E}/#it{p}, MC electrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCEle1EOverP->SetYTitle("#it{E}/#it{p}");
+      fhMCEle1EOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCEle1EOverP);
+      
+      fhMCEle1dR = new TH1F("hMCEle1dR","TRACK matches dR, MC electrons",ndRbins,dRmin,dRmax);
+      fhMCEle1dR->SetXTitle("#Delta #it{R} (rad)");
+      outputContainer->Add(fhMCEle1dR) ;
+      
+      fhMCEle2MatchdEdx = new TH2F("hMCEle2MatchdEdx","#it{dE/dx} vs. #it{p} for all matches, MC electrons",nptbins,ptmin,ptmax,ndedxbins,dedxmin,dedxmax);
+      fhMCEle2MatchdEdx->SetXTitle("#it{p} (GeV/#it{c})");
+      fhMCEle2MatchdEdx->SetYTitle("<#it{dE/dx}>");
+      outputContainer->Add(fhMCEle2MatchdEdx);
+      
+      fhMCChHad1EOverP = new TH2F("hMCChHad1EOverP","TRACK matches #it{E}/#it{p}, MC charged hadrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCChHad1EOverP->SetYTitle("#it{E}/#it{p}");
+      fhMCChHad1EOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCChHad1EOverP);
+      
+      fhMCChHad1dR = new TH1F("hMCChHad1dR","TRACK matches dR, MC charged hadrons",ndRbins,dRmin,dRmax);
+      fhMCChHad1dR->SetXTitle("#Delta R (rad)");
+      outputContainer->Add(fhMCChHad1dR) ;
+      
+      fhMCChHad2MatchdEdx = new TH2F("hMCChHad2MatchdEdx","#it{dE/dx} vs. #it{p} for all matches, MC charged hadrons",nptbins,ptmin,ptmax,ndedxbins,dedxmin,dedxmax);
+      fhMCChHad2MatchdEdx->SetXTitle("#it{p} (GeV/#it{c})");
+      fhMCChHad2MatchdEdx->SetYTitle("#it{dE/dx}>");
+      outputContainer->Add(fhMCChHad2MatchdEdx);
+      
+      fhMCNeutral1EOverP = new TH2F("hMCNeutral1EOverP","TRACK matches #it{E}/#it{p}, MC neutrals",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCNeutral1EOverP->SetYTitle("#it{E}/#it{p}");
+      fhMCNeutral1EOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCNeutral1EOverP);
+      
+      fhMCNeutral1dR = new TH1F("hMCNeutral1dR","TRACK matches dR, MC neutrals",ndRbins,dRmin,dRmax);
+      fhMCNeutral1dR->SetXTitle("#Delta #it{R} (rad)");
+      outputContainer->Add(fhMCNeutral1dR) ;
+      
+      fhMCNeutral2MatchdEdx = new TH2F("hMCNeutral2MatchdEdx","#it{dE/dx} vs. #it{p} for all matches, MC neutrals",nptbins,ptmin,ptmax,ndedxbins,dedxmin,dedxmax);
+      fhMCNeutral2MatchdEdx->SetXTitle("#it{p} (GeV/#it{c})");
+      fhMCNeutral2MatchdEdx->SetYTitle("#it{dE/dx}>");
+      outputContainer->Add(fhMCNeutral2MatchdEdx);
+      
+      fhMCEle1EOverPR02 = new TH2F("hMCEle1EOverPR02","TRACK matches #it{E}/#it{p}, MC electrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCEle1EOverPR02->SetYTitle("#it{E}/#it{p}");
+      fhMCEle1EOverPR02->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCEle1EOverPR02);
+      
+      fhMCChHad1EOverPR02 = new TH2F("hMCChHad1EOverPR02","TRACK matches #it{E}/#it{p}, MC charged hadrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCChHad1EOverPR02->SetYTitle("#it{E}/#it{p}");
+      fhMCChHad1EOverPR02->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCChHad1EOverPR02);
+      
+      fhMCNeutral1EOverPR02 = new TH2F("hMCNeutral1EOverPR02","TRACK matches #it{E}/#it{p}, MC neutrals",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCNeutral1EOverPR02->SetYTitle("#it{E}/#it{p}");
+      fhMCNeutral1EOverPR02->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCNeutral1EOverPR02);
+      
+      fhMCEle1EleEOverP = new TH2F("hMCEle1EleEOverP","Electron candidates #it{E}/#it{p} (60<dEdx<100), MC electrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCEle1EleEOverP->SetYTitle("#it{E}/#it{p}");
+      fhMCEle1EleEOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCEle1EleEOverP);
+      
+      fhMCChHad1EleEOverP = new TH2F("hMCEle1EleEOverP","Electron candidates #it{E}/#it{p} (60<dEdx<100), MC charged hadrons",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCChHad1EleEOverP->SetYTitle("#it{E}/#it{p}");
+      fhMCChHad1EleEOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCChHad1EleEOverP);
+      
+      fhMCNeutral1EleEOverP = new TH2F("hMCNeutral1EleEOverP","Electron candidates #it{E}/#it{p} (60<dEdx<100), MC neutrals",nptbins,ptmin,ptmax, nPoverEbins,eOverPmin,eOverPmax);
+      fhMCNeutral1EleEOverP->SetYTitle("#it{E}/#it{p}");
+      fhMCNeutral1EleEOverP->SetXTitle("#it{p}_{T} (GeV/#it{c})");
+      outputContainer->Add(fhMCNeutral1EleEOverP);
+    }
   }
   
   //  for(Int_t i = 0; i < outputContainer->GetEntries() ; i++)
@@ -7157,33 +7153,15 @@ void  AliAnaCalorimeterQA::MakeAnalysisFillHistograms()
 /// Not dependent on cluster/cell.
 //______________________________________
 void AliAnaCalorimeterQA::MCHistograms()
-{
+{  
+  if ( !GetMC() ) return;
+ 
   Int_t    pdg    =  0 ;
   Int_t    status =  0 ;
-  Int_t    nprim  =  0 ;
+  Int_t    nprim  = GetMC()->GetNumberOfTracks();
   
   TParticle        * primStack = 0;
   AliAODMCParticle * primAOD   = 0;
-  
-  // Get the MC arrays and do some checks before filling MC histograms
-    
-  // Get the ESD MC particles container
-  AliStack * stack = 0;
-  if( GetReader()->ReadStack() )
-  {
-    stack = GetMCStack();
-    if(!stack ) return;
-    nprim = stack->GetNtrack();
-  }
-  
-  // Get the AOD MC particles container
-  TClonesArray * mcparticles = 0;
-  if( GetReader()->ReadAODMCParticles() )
-  {
-    mcparticles = GetReader()->GetAODMCParticles();
-    if( !mcparticles ) return;
-    nprim = mcparticles->GetEntriesFast();
-  }
   
   //printf("N primaries %d\n",nprim);
   for(Int_t i=0 ; i < nprim; i++)
@@ -7194,7 +7172,7 @@ void AliAnaCalorimeterQA::MCHistograms()
     // and get its momentum. Different way to recover from ESD or AOD
     if(GetReader()->ReadStack())
     {
-      primStack = stack->Particle(i) ;
+      primStack = GetMC()->Particle(i) ;
       if(!primStack)
       {
         AliWarning("ESD primaries pointer not available!!");
@@ -7220,7 +7198,7 @@ void AliAnaCalorimeterQA::MCHistograms()
     }
     else
     {
-      primAOD = (AliAODMCParticle *) mcparticles->At(i);
+      primAOD = (AliAODMCParticle *) GetMC()->GetTrack(i);
       if(!primAOD)
       {
         AliWarning("AOD primaries pointer not available!!");
