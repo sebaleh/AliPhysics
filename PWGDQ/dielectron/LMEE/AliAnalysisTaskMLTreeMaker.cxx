@@ -110,8 +110,8 @@ AliAnalysisTaskMLTreeMaker::AliAnalysisTaskMLTreeMaker():
   fESDTrackCuts(0),
   gMultiplicity(-999),
   chi2ITS(0),
-  chi2TPC(0),
-  chi2Global(0),
+//  chi2TPC(0),
+  chi2GlobalPerNDF(0),
   nITSshared(0),
   chi2GlobalvsTPC(0),
   fCutMaxChi2TPCConstrainedVsGlobalVertexType(0),
@@ -186,8 +186,8 @@ AliAnalysisTaskMLTreeMaker::AliAnalysisTaskMLTreeMaker(const char *name) :
   fESDTrackCuts(0),
   gMultiplicity(-999),
   chi2ITS(0),
-  chi2TPC(0),
-  chi2Global(0),
+  chi2GlobalPerNDF(0),
+//  chi2Global(0),
   nITSshared(0),
   chi2GlobalvsTPC(0),
   fCutMaxChi2TPCConstrainedVsGlobalVertexType(0),
@@ -315,8 +315,10 @@ void AliAnalysisTaskMLTreeMaker::UserCreateOutputObjects() {
   fTree->Branch("nITS", &nITS);
   fTree->Branch("nITSshared_frac", &nITSshared);
   fTree->Branch("chi2ITS", &chi2ITS);
-  fTree->Branch("chi2TPC", &chi2TPC);
-  fTree->Branch("chi2GlobalvsTPC", &chi2GlobalvsTPC);
+//  fTree->Branch("chi2TPC", &chi2TPC);
+//  fTree->Branch("chi2GlobalvsTPC", &chi2GlobalvsTPC);
+  fTree->Branch("chi2GlobalPerNDF", &chi2GlobalPerNDF);
+
   
   if(hasMC) {
       
@@ -474,8 +476,8 @@ Int_t AliAnalysisTaskMLTreeMaker::GetAcceptedTracks(AliVEvent *event, Double_t g
   nITS.clear();
   nITSshared.clear();
   chi2ITS.clear();
-  chi2TPC.clear();
-  chi2Global.clear();
+//  chi2TPC.clear();
+//  chi2Global.clear();
   chi2GlobalvsTPC.clear();
   pdg.clear();
   pdgmother.clear();
@@ -683,34 +685,38 @@ Int_t AliAnalysisTaskMLTreeMaker::GetAcceptedTracks(AliVEvent *event, Double_t g
         for(int d = 0; d<6;d++){
           nitssharedtemp+= (Double_t) track->HasSharedPointOnITSLayer(d);
         }
-//              if(nitssharedtemp) cout<<"frac: "<<nitssharedtemp<<endl;
+
         nitssharedtemp/=tempnits;
       }
 
       nITSshared.push_back(nitssharedtemp);
       
       chi2ITS.push_back(track->GetITSchi2());
-      chi2TPC.push_back(track->GetTPCchi2());//this variable will be always 0 for AODs (not yet in)
       
-      fCutMaxChi2TPCConstrainedVsGlobalVertexType = fESDTrackCuts->kVertexTracks | fESDTrackCuts->kVertexSPD;
+      if(isAOD) chi2GlobalPerNDF.push_back(((AliAODTrack*)track)->Chi2perNDF());
+      else      chi2GlobalvsTPC.push_back(0.);       //to be implemented!
 
-      const AliVVertex* vertex = 0;
-      if (fCutMaxChi2TPCConstrainedVsGlobalVertexType & fESDTrackCuts->kVertexTracks){
-        vertex = track->GetEvent()->GetPrimaryVertexTracks();}
       
-      if ((!vertex || !vertex->GetStatus()) && fCutMaxChi2TPCConstrainedVsGlobalVertexType & fESDTrackCuts->kVertexSPD){
-	      vertex = track->GetEvent()->GetPrimaryVertexSPD();}
-	
-      if ((!vertex || !vertex->GetStatus()) && fCutMaxChi2TPCConstrainedVsGlobalVertexType & fESDTrackCuts->kVertexTPC){
-	      vertex = track->GetEvent()->GetPrimaryVertexTPC();}
+      
+//      fCutMaxChi2TPCConstrainedVsGlobalVertexType = fESDTrackCuts->kVertexTracks | fESDTrackCuts->kVertexSPD;
+//
+//      const AliVVertex* vertex = 0;
+//      if (fCutMaxChi2TPCConstrainedVsGlobalVertexType & fESDTrackCuts->kVertexTracks){
+//        vertex = track->GetEvent()->GetPrimaryVertexTracks();}
+//      
+//      if ((!vertex || !vertex->GetStatus()) && fCutMaxChi2TPCConstrainedVsGlobalVertexType & fESDTrackCuts->kVertexSPD){
+//	      vertex = track->GetEvent()->GetPrimaryVertexSPD();}
+//	
+//      if ((!vertex || !vertex->GetStatus()) && fCutMaxChi2TPCConstrainedVsGlobalVertexType & fESDTrackCuts->kVertexTPC){
+//	      vertex = track->GetEvent()->GetPrimaryVertexTPC();}
 
       // golden chi2 has to be done separately
-      if (vertex->GetStatus()){
-	if(isAOD)
-	  chi2GlobalvsTPC.push_back(((AliAODTrack*)track)->GetChi2TPCConstrainedVsGlobal());
-	else
-	  chi2GlobalvsTPC.push_back(((AliESDtrack*)track)->GetChi2TPCConstrainedVsGlobal((AliESDVertex*)vertex));
-      }
+//      if (vertex->GetStatus()){
+//	if(isAOD)
+//	  chi2GlobalvsTPC.push_back(((AliAODTrack*)track)->GetChi2TPCConstrainedVsGlobal());
+//	else
+//	  chi2GlobalvsTPC.push_back(((AliESDtrack*)track)->GetChi2TPCConstrainedVsGlobal((AliESDVertex*)vertex));
+//      }
  
       // count tracks
       acceptedTracks++;

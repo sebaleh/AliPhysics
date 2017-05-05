@@ -23,7 +23,7 @@
 // --- Analysis system ---
 #include "AliAnaPhoton.h"
 #include "AliCaloTrackReader.h"
-#include "AliStack.h"
+#include "AliMCEvent.h"
 #include "AliCaloPID.h"
 #include "AliMCAnalysisUtils.h"
 #include "AliFiducialCut.h"
@@ -49,7 +49,7 @@ ClassImp(AliAnaPhoton) ;
 AliAnaPhoton::AliAnaPhoton() :
 AliAnaCaloTrackCorrBaseClass(),
 fMinDist(0.),                 fMinDist2(0.),                fMinDist3(0.),
-fRejectTrackMatch(0),         fFillTMHisto(kFALSE),
+fRejectTrackMatch(0),         fFillTMHisto(kFALSE),         fFillTMHistoTrackPt(0),
 fTimeCutMin(-10000),          fTimeCutMax(10000),
 fNCellsCut(0),
 fNLMCutMin(-1),               fNLMCutMax(10),
@@ -212,11 +212,11 @@ fhDistance2Hijing(0)
   // Track matching residuals
   for(Int_t i = 0; i < 2; i++)
   {
-    fhTrackMatchedDEta   [i] = 0;             fhTrackMatchedDPhi   [i] = 0;         fhTrackMatchedDEtaDPhi   [i] = 0;
+  //fhTrackMatchedDEta   [i] = 0;             fhTrackMatchedDPhi   [i] = 0;         fhTrackMatchedDEtaDPhi   [i] = 0;
     fhTrackMatchedDEtaNeg[i] = 0;             fhTrackMatchedDPhiNeg[i] = 0;         fhTrackMatchedDEtaDPhiNeg[i] = 0;
     fhTrackMatchedDEtaPos[i] = 0;             fhTrackMatchedDPhiPos[i] = 0;         fhTrackMatchedDEtaDPhiPos[i] = 0;
 
-    fhTrackMatchedDEtaTrackPt   [i] = 0;      fhTrackMatchedDPhiTrackPt   [i] = 0;  fhTrackMatchedDEtaDPhiTrackPt   [i] = 0;
+  //fhTrackMatchedDEtaTrackPt   [i] = 0;      fhTrackMatchedDPhiTrackPt   [i] = 0;  fhTrackMatchedDEtaDPhiTrackPt   [i] = 0;
     fhTrackMatchedDEtaNegTrackPt[i] = 0;      fhTrackMatchedDPhiNegTrackPt[i] = 0;  fhTrackMatchedDEtaDPhiNegTrackPt[i] = 0;
     fhTrackMatchedDEtaPosTrackPt[i] = 0;      fhTrackMatchedDPhiPosTrackPt[i] = 0;  fhTrackMatchedDEtaDPhiPosTrackPt[i] = 0;
     
@@ -226,6 +226,7 @@ fhDistance2Hijing(0)
     fhTrackMatchedDEtaMCConversion[i] = 0;    fhTrackMatchedDPhiMCConversion[i] = 0;
     fhTrackMatchedMCParticle[i] = 0;          fhTrackMatchedMCParticle[i] = 0;
     fhdEdx[i] = 0;                            fhEOverP[i] = 0;
+    fhdEdxTrackPt[i] = 0;                     fhEOverPTrackPt[i] = 0;
     fhEOverPTRD[i] = 0;
   }
   
@@ -959,6 +960,12 @@ Bool_t  AliAnaPhoton::ClusterSelected(AliVCluster* calo, Int_t nMaxima)
 //___________________________________________
 void AliAnaPhoton::FillAcceptanceHistograms()
 {
+  if( !GetMC() )
+  {
+    AliFatal("MCEvent not available, is the MC handler called? STOP");
+    return;
+  }
+  
   Double_t photonY   = -100 ;
   Double_t photonE   = -1 ;
   Double_t photonPt  = -1 ;
@@ -969,37 +976,11 @@ void AliAnaPhoton::FillAcceptanceHistograms()
   Int_t    tag       =  0 ;
   Int_t    status    =  0 ;
   Int_t    mcIndex   =  0 ;
-  Int_t    nprim     =  0 ;
+  Int_t    nprim     =  GetMC()->GetNumberOfTracks();
   Bool_t   inacceptance = kFALSE ;
   
   TParticle        * primStack = 0;
   AliAODMCParticle * primAOD   = 0;
-  
-  // Get the ESD MC particles container
-  AliStack * stack = 0;
-  if( GetReader()->ReadStack() )
-  {
-    stack = GetMCStack();
-    if( !stack )
-    {
-      AliFatal("Stack not available, is the MC handler called? STOP");
-      return;
-    }
-    nprim = stack->GetNtrack();
-  }
-  
-  // Get the AOD MC particles container
-  TClonesArray * mcparticles = 0;
-  if( GetReader()->ReadAODMCParticles() )
-  {
-    mcparticles = GetReader()->GetAODMCParticles();
-    if( !mcparticles )
-    {
-      AliFatal("Standard MCParticles not available!");
-      return;
-    }
-    nprim = mcparticles->GetEntriesFast();
-  }
   
   for(Int_t i=0 ; i < nprim; i++)
   {
@@ -1007,7 +988,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
     
     if(GetReader()->ReadStack())
     {
-      primStack = stack->Particle(i) ;
+      primStack = GetMC()->Particle(i) ;
       if(!primStack)
       {
         AliWarning("ESD primaries pointer not available!!");
@@ -1022,7 +1003,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
           (primStack->Energy() - primStack->Pz()) < 1e-3      ||
           (primStack->Energy() + primStack->Pz()) < 0           )  continue ; 
       
-      //printf("i %d, %s %d  %s %d \n",i, stack->Particle(i)->GetName(), stack->Particle(i)->GetPdgCode(),
+      //printf("i %d, %s %d  %s %d \n",i, GetMC()->Particle(i)->GetName(), GetMC()->Particle(i)->GetPdgCode(),
       //       prim->GetName(), prim->GetPdgCode());
       
       // Photon kinematics
@@ -1032,7 +1013,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
     }
     else
     {
-      primAOD = (AliAODMCParticle *) mcparticles->At(i);
+      primAOD = (AliAODMCParticle *) GetMC()->GetTrack(i);
       if(!primAOD)
       {
         AliWarning("AOD primaries pointer not available!!");
@@ -1096,7 +1077,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
     }
   
     //if(fStudyActivityNearCluster  && photonE > 5) // cut at 5 GeV to avoid too many iterations
-     // DistanceToAddedSignalAtGeneratorLevel(i,nprim, stack, mcparticles, photonE,photonEta,photonPhi);
+     // DistanceToAddedSignalAtGeneratorLevel(i,nprim, GetMC(), photonE,photonEta,photonPhi);
     
     // Consider only final state particles, but this depends on generator,
     // status 1 is the usual one, in case of not being ok, leave the possibility
@@ -1193,7 +1174,6 @@ void AliAnaPhoton::FillAcceptanceHistograms()
 ///
 //________________________________________________________________________________
 //void AliAnaPhoton::DistanceToAddedSignal(Int_t label, Int_t nprim, 
-//                                         AliStack * stack, TClonesArray*  mcparticles,
 //                                         Float_t photonE, Float_t photonEta, Float_t photonPhi)
 //{
 //  //Double_t addedY   = -100 ;
@@ -1217,7 +1197,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
 //  AliAODMCParticle * primAODMom   = 0;
 //
 //  TString genName;
-//  (GetReader()->GetMC())->GetCocktailGenerator(label,genName);
+//  (GetMC())->GetCocktailGenerator(label,genName);
 //  
 //  for(Int_t i=0 ; i < nprim; i++)
 //  {
@@ -1237,7 +1217,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
 //    Int_t grandMomLabel = -1;
 //    if(GetReader()->ReadStack())
 //    {
-//      primStack = stack->Particle(i) ;
+//      primStack = GetMC()->Particle(i) ;
 //      if(!primStack)
 //      {
 //        AliWarning("ESD primaries pointer not available!!");
@@ -1252,7 +1232,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
 //          (primStack->Energy() - primStack->Pz()) < 1e-3      ||
 //          (primStack->Energy() + primStack->Pz()) < 0           )  continue ; 
 //      
-//      //printf("i %d, %s %d  %s %d \n",i, stack->Particle(i)->GetName(), stack->Particle(i)->GetPdgCode(),
+//      //printf("i %d, %s %d  %s %d \n",i, GetMC()->Particle(i)->GetName(), GetMC()->Particle(i)->GetPdgCode(),
 //      //       prim->GetName(), prim->GetPdgCode());
 //      
 //      // Photon kinematics
@@ -1262,13 +1242,13 @@ void AliAnaPhoton::FillAcceptanceHistograms()
 //      
 //      if(momLabel >= 0)
 //      {
-//        primStackMom = stack->Particle(momLabel) ;
+//        primStackMom = GetMC()->Particle(momLabel) ;
 //        grandMomLabel = primStackMom->GetFirstMother();      
 //      }
 //    }
 //    else
 //    {
-//      primAOD = (AliAODMCParticle *) mcparticles->At(i);
+//      primAOD = (AliAODMCParticle *) GetMC()->GetTrack(i);
 //      if(!primAOD)
 //      {
 //        AliWarning("AOD primaries pointer not available!!");
@@ -1291,7 +1271,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
 //      
 //      if(momLabel >= 0)
 //      {
-//        primAODMom = (AliAODMCParticle *) mcparticles->At(momLabel);
+//        primAODMom = (AliAODMCParticle *) GetMC()->GetTrack(momLabel);
 //        grandMomLabel = primAODMom->GetMother();
 //      }
 //    }
@@ -1329,7 +1309,7 @@ void AliAnaPhoton::FillAcceptanceHistograms()
 //    if(!inacceptance) continue;
 //    
 //    TString genName2;
-//    (GetReader()->GetMC())->GetCocktailGenerator(i,genName2);
+//    (GetMC())->GetCocktailGenerator(i,genName2);
 //    
 //    Float_t dEta = photonEta-addedEta;
 //    Float_t dPhi = photonPhi-addedPhi;
@@ -2058,15 +2038,15 @@ void AliAnaPhoton::FillTrackMatchingResidualHistograms(AliVCluster* cluster,
   Bool_t positive = kFALSE;
   if(track) positive = (track->Charge()>0);
   
-  if(fhTrackMatchedDEta[cut] && TMath::Abs(dPhi) < 999)
+  if(fhTrackMatchedDEtaPos[cut] && TMath::Abs(dPhi) < 999)
   {
-    fhTrackMatchedDEta[cut]->Fill(cluster->E(), dEta, GetEventWeight());
-    fhTrackMatchedDPhi[cut]->Fill(cluster->E(), dPhi, GetEventWeight());
-    if(cluster->E() > 0.5) fhTrackMatchedDEtaDPhi[cut]->Fill(dEta, dPhi, GetEventWeight());
-
-    fhTrackMatchedDEtaTrackPt[cut]->Fill(track->Pt(), dEta, GetEventWeight());
-    fhTrackMatchedDPhiTrackPt[cut]->Fill(track->Pt(), dPhi, GetEventWeight());
-    if(track->Pt() > 0.5) fhTrackMatchedDEtaDPhiTrackPt[cut]->Fill(dEta, dPhi, GetEventWeight());
+//    fhTrackMatchedDEta[cut]->Fill(cluster->E(), dEta, GetEventWeight());
+//    fhTrackMatchedDPhi[cut]->Fill(cluster->E(), dPhi, GetEventWeight());
+//    if(cluster->E() > 0.5) fhTrackMatchedDEtaDPhi[cut]->Fill(dEta, dPhi, GetEventWeight());
+//
+//    fhTrackMatchedDEtaTrackPt[cut]->Fill(track->Pt(), dEta, GetEventWeight());
+//    fhTrackMatchedDPhiTrackPt[cut]->Fill(track->Pt(), dPhi, GetEventWeight());
+//    if(track->Pt() > 0.5) fhTrackMatchedDEtaDPhiTrackPt[cut]->Fill(dEta, dPhi, GetEventWeight());
     
     if(track)
     {
@@ -2076,9 +2056,12 @@ void AliAnaPhoton::FillTrackMatchingResidualHistograms(AliVCluster* cluster,
         fhTrackMatchedDPhiPos[cut]->Fill(cluster->E(), dPhi, GetEventWeight());
         if(cluster->E() > 0.5) fhTrackMatchedDEtaDPhiPos[cut]->Fill(dEta,dPhi, GetEventWeight());
         
-        fhTrackMatchedDEtaPosTrackPt[cut]->Fill(track->Pt(), dEta, GetEventWeight());
-        fhTrackMatchedDPhiPosTrackPt[cut]->Fill(track->Pt(), dPhi, GetEventWeight());
-        if(track->Pt() > 0.5) fhTrackMatchedDEtaDPhiPosTrackPt[cut]->Fill(dEta,dPhi, GetEventWeight());
+        if(fFillTMHistoTrackPt)
+        {
+          fhTrackMatchedDEtaPosTrackPt[cut]->Fill(track->Pt(), dEta, GetEventWeight());
+          fhTrackMatchedDPhiPosTrackPt[cut]->Fill(track->Pt(), dPhi, GetEventWeight());
+          if(track->Pt() > 0.5) fhTrackMatchedDEtaDPhiPosTrackPt[cut]->Fill(dEta,dPhi, GetEventWeight());
+        }
       }
       else
       {
@@ -2086,9 +2069,12 @@ void AliAnaPhoton::FillTrackMatchingResidualHistograms(AliVCluster* cluster,
         fhTrackMatchedDPhiNeg[cut]->Fill(cluster->E(), dPhi, GetEventWeight());
         if(cluster->E() > 0.5) fhTrackMatchedDEtaDPhiNeg[cut]->Fill(dEta, dPhi, GetEventWeight());
         
-        fhTrackMatchedDEtaNegTrackPt[cut]->Fill(track->Pt(), dEta, GetEventWeight());
-        fhTrackMatchedDPhiNegTrackPt[cut]->Fill(track->Pt(), dPhi, GetEventWeight());
-        if(track->Pt() > 0.5) fhTrackMatchedDEtaDPhiNegTrackPt[cut]->Fill(dEta, dPhi, GetEventWeight());
+        if(fFillTMHistoTrackPt)
+        {
+          fhTrackMatchedDEtaNegTrackPt[cut]->Fill(track->Pt(), dEta, GetEventWeight());
+          fhTrackMatchedDPhiNegTrackPt[cut]->Fill(track->Pt(), dPhi, GetEventWeight());
+          if(track->Pt() > 0.5) fhTrackMatchedDEtaDPhiNegTrackPt[cut]->Fill(dEta, dPhi, GetEventWeight());
+        }
       }
     }
     
@@ -2102,7 +2088,7 @@ void AliAnaPhoton::FillTrackMatchingResidualHistograms(AliVCluster* cluster,
     }
     
     // Check dEdx and E/p of matched clusters
-
+    
     if(TMath::Abs(dEta) < 0.05 && TMath::Abs(dPhi) < 0.05)
     {
       if(track)
@@ -2110,14 +2096,18 @@ void AliAnaPhoton::FillTrackMatchingResidualHistograms(AliVCluster* cluster,
         Float_t dEdx   = track->GetTPCsignal();
         Float_t eOverp = cluster->E()/track->P();
         
-        fhdEdx[cut]  ->Fill(cluster->E(), dEdx  , GetEventWeight());
+        fhdEdx  [cut]->Fill(cluster->E(), dEdx  , GetEventWeight());
         fhEOverP[cut]->Fill(cluster->E(), eOverp, GetEventWeight());
+        
+        if(fFillTMHistoTrackPt)
+        {
+          fhdEdxTrackPt  [cut]->Fill(track->Pt(), dEdx  , GetEventWeight());
+          fhEOverPTrackPt[cut]->Fill(track->Pt(), eOverp, GetEventWeight());
+        }
         
         if(GetCalorimeter()==kEMCAL &&  GetFirstSMCoveredByTRD() >= 0 &&
            nSMod >= GetFirstSMCoveredByTRD()  )
           fhEOverPTRD[cut]->Fill(cluster->E(), eOverp, GetEventWeight());
-        
-        
       }
       else
         AliWarning(Form("Residual OK but (dPhi, dEta)= (%2.4f,%2.4f) no track associated WHAT?", dPhi,dEta));
@@ -2745,26 +2735,26 @@ TList *  AliAnaPhoton::GetCreateOutputObjects()
     
     for(Int_t i = 0; i < 2; i++)
     {
-      fhTrackMatchedDEta[i]  = new TH2F
-      (Form("hTrackMatchedDEta%s",cutTM[i].Data()),
-       Form("d#eta of cluster-track vs #it{E}_{cluster}, %s",cutTM[i].Data()),
-       nptbins,ptmin,ptmax,nresetabins,resetamin,resetamax);
-      fhTrackMatchedDEta[i]->SetYTitle("#Delta #eta");
-      fhTrackMatchedDEta[i]->SetXTitle("#it{E}_{cluster} (GeV)");
-      
-      fhTrackMatchedDPhi[i]  = new TH2F
-      (Form("hTrackMatchedDPhi%s",cutTM[i].Data()),
-       Form("#Delta #varphi of cluster-track vs #it{E}_{cluster}, %s",cutTM[i].Data()),
-       nptbins,ptmin,ptmax,nresphibins,resphimin,resphimax);
-      fhTrackMatchedDPhi[i]->SetYTitle("#Delta #varphi (rad)");
-      fhTrackMatchedDPhi[i]->SetXTitle("#it{E}_{cluster} (GeV)");
-      
-      fhTrackMatchedDEtaDPhi[i]  = new TH2F
-      (Form("hTrackMatchedDEtaDPhi%s",cutTM[i].Data()),
-       Form("#Delta #eta vs #Delta #varphi of cluster-track, #it{E}_{cluster}, %s",cutTM[i].Data()),
-       nresetabins,resetamin,resetamax,nresphibins,resphimin,resphimax);
-      fhTrackMatchedDEtaDPhi[i]->SetYTitle("#Delta #varphi (rad)");
-      fhTrackMatchedDEtaDPhi[i]->SetXTitle("#Delta #eta");
+//      fhTrackMatchedDEta[i]  = new TH2F
+//      (Form("hTrackMatchedDEta%s",cutTM[i].Data()),
+//       Form("d#eta of cluster-track vs #it{E}_{cluster}, %s",cutTM[i].Data()),
+//       nptbins,ptmin,ptmax,nresetabins,resetamin,resetamax);
+//      fhTrackMatchedDEta[i]->SetYTitle("#Delta #eta");
+//      fhTrackMatchedDEta[i]->SetXTitle("#it{E}_{cluster} (GeV)");
+//      
+//      fhTrackMatchedDPhi[i]  = new TH2F
+//      (Form("hTrackMatchedDPhi%s",cutTM[i].Data()),
+//       Form("#Delta #varphi of cluster-track vs #it{E}_{cluster}, %s",cutTM[i].Data()),
+//       nptbins,ptmin,ptmax,nresphibins,resphimin,resphimax);
+//      fhTrackMatchedDPhi[i]->SetYTitle("#Delta #varphi (rad)");
+//      fhTrackMatchedDPhi[i]->SetXTitle("#it{E}_{cluster} (GeV)");
+//      
+//      fhTrackMatchedDEtaDPhi[i]  = new TH2F
+//      (Form("hTrackMatchedDEtaDPhi%s",cutTM[i].Data()),
+//       Form("#Delta #eta vs #Delta #varphi of cluster-track, #it{E}_{cluster}, %s",cutTM[i].Data()),
+//       nresetabins,resetamin,resetamax,nresphibins,resphimin,resphimax);
+//      fhTrackMatchedDEtaDPhi[i]->SetYTitle("#Delta #varphi (rad)");
+//      fhTrackMatchedDEtaDPhi[i]->SetXTitle("#Delta #eta");
       
       fhTrackMatchedDEtaPos[i]  = new TH2F
       (Form("hTrackMatchedDEtaPos%s",cutTM[i].Data()),
@@ -2809,83 +2799,99 @@ TList *  AliAnaPhoton::GetCreateOutputObjects()
       fhTrackMatchedDEtaDPhiNeg[i]->SetXTitle("#Delta #eta");
 
       
-      fhTrackMatchedDEtaTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDEtaTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #eta of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
-       nptbins,ptmin,ptmax,nresetabins,resetamin,resetamax);
-      fhTrackMatchedDEtaTrackPt[i]->SetYTitle("#Delta #eta");
-      fhTrackMatchedDEtaTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+//      fhTrackMatchedDEtaTrackPt[i]  = new TH2F
+//      (Form("hTrackMatchedDEtaTrackPt%s",cutTM[i].Data()),
+//       Form("#Delta #eta of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
+//       nptbins,ptmin,ptmax,nresetabins,resetamin,resetamax);
+//      fhTrackMatchedDEtaTrackPt[i]->SetYTitle("#Delta #eta");
+//      fhTrackMatchedDEtaTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+//      
+//      fhTrackMatchedDPhiTrackPt[i]  = new TH2F
+//      (Form("hTrackMatchedDPhiTrackPt%s",cutTM[i].Data()),
+//       Form("#Delta #varphi of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
+//       nptbins,ptmin,ptmax,nresphibins,resphimin,resphimax);
+//      fhTrackMatchedDPhiTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
+//      fhTrackMatchedDPhiTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+//      
+//      fhTrackMatchedDEtaDPhiTrackPt[i]  = new TH2F
+//      (Form("hTrackMatchedDEtaDPhiTrackPt%s",cutTM[i].Data()),
+//       Form("#Delta #eta vs #Delta #varphi of cluster-track #it{p}_{T}^{track} > 0.5 GeV/#it{c}, %s",cutTM[i].Data()),
+//       nresetabins,resetamin,resetamax,nresphibins,resphimin,resphimax);
+//      fhTrackMatchedDEtaDPhiTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
+//      fhTrackMatchedDEtaDPhiTrackPt[i]->SetXTitle("#Delta #eta");
       
-      fhTrackMatchedDPhiTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDPhiTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #varphi of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
-       nptbins,ptmin,ptmax,nresphibins,resphimin,resphimax);
-      fhTrackMatchedDPhiTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
-      fhTrackMatchedDPhiTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+      if(fFillTMHistoTrackPt)
+      {
+        fhTrackMatchedDEtaPosTrackPt[i]  = new TH2F
+        (Form("hTrackMatchedDEtaPosTrackPt%s",cutTM[i].Data()),
+         Form("#Delta #eta of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
+         nptbins,ptmin,ptmax,nresetabins,resetamin,resetamax);
+        fhTrackMatchedDEtaPosTrackPt[i]->SetYTitle("#Delta #eta");
+        fhTrackMatchedDEtaPosTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+        
+        fhTrackMatchedDPhiPosTrackPt[i]  = new TH2F
+        (Form("hTrackMatchedDPhiPosTrackPt%s",cutTM[i].Data()),
+         Form("#Delta #varphi of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
+         nptbins,ptmin,ptmax,nresphibins,resphimin,resphimax);
+        fhTrackMatchedDPhiPosTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
+        fhTrackMatchedDPhiPosTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+        
+        fhTrackMatchedDEtaDPhiPosTrackPt[i]  = new TH2F
+        (Form("hTrackMatchedDEtaDPhiPosTrackPt%s",cutTM[i].Data()),
+         Form("#Delta #eta vs #Delta #varphi of cluster-track, #it{p}_{T}^{track} > 0.5 GeV/#it{c}, %s",cutTM[i].Data()),
+         nresetabins,resetamin,resetamax,nresphibins,resphimin,resphimax);
+        fhTrackMatchedDEtaDPhiPosTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
+        fhTrackMatchedDEtaDPhiPosTrackPt[i]->SetXTitle("#Delta #eta");
+        
+        fhTrackMatchedDEtaNegTrackPt[i]  = new TH2F
+        (Form("hTrackMatchedDEtaNegTrackPt%s",cutTM[i].Data()),
+         Form("#Delta #eta of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
+         nptbins,ptmin,ptmax,nresetabins,resetamin,resetamax);
+        fhTrackMatchedDEtaNegTrackPt[i]->SetYTitle("#Delta #eta");
+        fhTrackMatchedDEtaNegTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+        
+        fhTrackMatchedDPhiNegTrackPt[i]  = new TH2F
+        (Form("hTrackMatchedDPhiNegTrackPt%s",cutTM[i].Data()),
+         Form("#Delta #varphi of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
+         nptbins,ptmin,ptmax,nresphibins,resphimin,resphimax);
+        fhTrackMatchedDPhiNegTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
+        fhTrackMatchedDPhiNegTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+        
+        fhTrackMatchedDEtaDPhiNegTrackPt[i]  = new TH2F
+        (Form("hTrackMatchedDEtaDPhiNegTrackPt%s",cutTM[i].Data()),
+         Form("#Delta #eta vs #Delta #varphi of cluster-track, #it{p}_{T}^{track} > 0.5 GeV/#it{c}, %s",cutTM[i].Data()),
+         nresetabins,resetamin,resetamax,nresphibins,resphimin,resphimax);
+        fhTrackMatchedDEtaDPhiNegTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
+        fhTrackMatchedDEtaDPhiNegTrackPt[i]->SetXTitle("#Delta #eta");
+      }
       
-      fhTrackMatchedDEtaDPhiTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDEtaDPhiTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #eta vs #Delta #varphi of cluster-track #it{p}_{T}^{track} > 0.5 GeV/#it{c}, %s",cutTM[i].Data()),
-       nresetabins,resetamin,resetamax,nresphibins,resphimin,resphimax);
-      fhTrackMatchedDEtaDPhiTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
-      fhTrackMatchedDEtaDPhiTrackPt[i]->SetXTitle("#Delta #eta");
       
-      fhTrackMatchedDEtaPosTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDEtaPosTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #eta of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
-       nptbins,ptmin,ptmax,nresetabins,resetamin,resetamax);
-      fhTrackMatchedDEtaPosTrackPt[i]->SetYTitle("#Delta #eta");
-      fhTrackMatchedDEtaPosTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
-      
-      fhTrackMatchedDPhiPosTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDPhiPosTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #varphi of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
-       nptbins,ptmin,ptmax,nresphibins,resphimin,resphimax);
-      fhTrackMatchedDPhiPosTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
-      fhTrackMatchedDPhiPosTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
-      
-      fhTrackMatchedDEtaDPhiPosTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDEtaDPhiPosTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #eta vs #Delta #varphi of cluster-track, #it{p}_{T}^{track} > 0.5 GeV/#it{c}, %s",cutTM[i].Data()),
-       nresetabins,resetamin,resetamax,nresphibins,resphimin,resphimax);
-      fhTrackMatchedDEtaDPhiPosTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
-      fhTrackMatchedDEtaDPhiPosTrackPt[i]->SetXTitle("#Delta #eta");
-      
-      fhTrackMatchedDEtaNegTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDEtaNegTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #eta of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
-       nptbins,ptmin,ptmax,nresetabins,resetamin,resetamax);
-      fhTrackMatchedDEtaNegTrackPt[i]->SetYTitle("#Delta #eta");
-      fhTrackMatchedDEtaNegTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
-      
-      fhTrackMatchedDPhiNegTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDPhiNegTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #varphi of cluster-track vs #it{p}_{T}^{track}, %s",cutTM[i].Data()),
-       nptbins,ptmin,ptmax,nresphibins,resphimin,resphimax);
-      fhTrackMatchedDPhiNegTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
-      fhTrackMatchedDPhiNegTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
-      
-      fhTrackMatchedDEtaDPhiNegTrackPt[i]  = new TH2F
-      (Form("hTrackMatchedDEtaDPhiNegTrackPt%s",cutTM[i].Data()),
-       Form("#Delta #eta vs #Delta #varphi of cluster-track, #it{p}_{T}^{track} > 0.5 GeV/#it{c}, %s",cutTM[i].Data()),
-       nresetabins,resetamin,resetamax,nresphibins,resphimin,resphimax);
-      fhTrackMatchedDEtaDPhiNegTrackPt[i]->SetYTitle("#Delta #varphi (rad)");
-      fhTrackMatchedDEtaDPhiNegTrackPt[i]->SetXTitle("#Delta #eta");
-
-      
-      fhdEdx[i]  = new TH2F (Form("hdEdx%s",cutTM[i].Data()),Form("matched track <dE/dx> vs cluster E, %s",cutTM[i].Data()),
+      fhdEdx[i]  = new TH2F (Form("hdEdx%s",cutTM[i].Data()),Form("matched track <dE/dx> vs cluster #it{E}, %s",cutTM[i].Data()),
                              nptbins,ptmin,ptmax,ndedxbins, dedxmin, dedxmax);
-      fhdEdx[i]->SetXTitle("#it{E} (GeV)");
+      fhdEdx[i]->SetXTitle("#it{E}^{cluster} (GeV)");
       fhdEdx[i]->SetYTitle("<dE/dx>");
       
-      fhEOverP[i]  = new TH2F (Form("hEOverP%s",cutTM[i].Data()),Form("matched track E/p vs cluster E, %s",cutTM[i].Data()),
+      fhEOverP[i]  = new TH2F (Form("hEOverP%s",cutTM[i].Data()),Form("matched track E/p vs cluster #it{E}, %s",cutTM[i].Data()),
                                nptbins,ptmin,ptmax,nPoverEbins,pOverEmin,pOverEmax);
-      fhEOverP[i]->SetXTitle("#it{E} (GeV)");
+      fhEOverP[i]->SetXTitle("#it{E}^{cluster} (GeV)");
       fhEOverP[i]->SetYTitle("E/p");
       
-      outputContainer->Add(fhTrackMatchedDEta[i]) ;
-      outputContainer->Add(fhTrackMatchedDPhi[i]) ;
-      outputContainer->Add(fhTrackMatchedDEtaDPhi[i]) ;
+      if(fFillTMHistoTrackPt)
+      {
+        fhdEdxTrackPt[i]  = new TH2F (Form("hdEdxTrackPt%s",cutTM[i].Data()),Form("matched track <dE/dx> vs track #it{p}_{T}, %s",cutTM[i].Data()),
+                               nptbins,ptmin,ptmax,ndedxbins, dedxmin, dedxmax);
+        fhdEdxTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV/#it{c})");
+        fhdEdxTrackPt[i]->SetYTitle("<dE/dx>");
+        
+        fhEOverPTrackPt[i]  = new TH2F (Form("hEOverPTrackPt%s",cutTM[i].Data()),Form("matched track E/p vs track #it{p}_{T}, %s",cutTM[i].Data()),
+                                 nptbins,ptmin,ptmax,nPoverEbins,pOverEmin,pOverEmax);
+        fhEOverPTrackPt[i]->SetXTitle("#it{p}_{T}^{track} (GeV)^{track/#it{c}}");
+        fhEOverPTrackPt[i]->SetYTitle("E/p");
+      }     
+      
+//      outputContainer->Add(fhTrackMatchedDEta[i]) ;
+//      outputContainer->Add(fhTrackMatchedDPhi[i]) ;
+//      outputContainer->Add(fhTrackMatchedDEtaDPhi[i]) ;
       outputContainer->Add(fhTrackMatchedDEtaPos[i]) ;
       outputContainer->Add(fhTrackMatchedDPhiPos[i]) ;
       outputContainer->Add(fhTrackMatchedDEtaDPhiPos[i]) ;
@@ -2893,9 +2899,9 @@ TList *  AliAnaPhoton::GetCreateOutputObjects()
       outputContainer->Add(fhTrackMatchedDPhiNeg[i]) ;
       outputContainer->Add(fhTrackMatchedDEtaDPhiNeg[i]) ;
 
-      outputContainer->Add(fhTrackMatchedDEtaTrackPt[i]) ;
-      outputContainer->Add(fhTrackMatchedDPhiTrackPt[i]) ;
-      outputContainer->Add(fhTrackMatchedDEtaDPhiTrackPt[i]) ;
+//      outputContainer->Add(fhTrackMatchedDEtaTrackPt[i]) ;
+//      outputContainer->Add(fhTrackMatchedDPhiTrackPt[i]) ;
+//      outputContainer->Add(fhTrackMatchedDEtaDPhiTrackPt[i]) ;
       outputContainer->Add(fhTrackMatchedDEtaPosTrackPt[i]) ;
       outputContainer->Add(fhTrackMatchedDPhiPosTrackPt[i]) ;
       outputContainer->Add(fhTrackMatchedDEtaDPhiPosTrackPt[i]) ;
@@ -2905,6 +2911,8 @@ TList *  AliAnaPhoton::GetCreateOutputObjects()
       
       outputContainer->Add(fhdEdx[i]);
       outputContainer->Add(fhEOverP[i]);
+      outputContainer->Add(fhdEdxTrackPt[i]);
+      outputContainer->Add(fhEOverPTrackPt[i]);
       
       if(GetCalorimeter()==kEMCAL &&  GetFirstSMCoveredByTRD() >=0 )
       {

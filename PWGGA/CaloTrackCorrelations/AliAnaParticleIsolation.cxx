@@ -27,7 +27,7 @@
 // --- Analysis system ---
 #include "AliAnaParticleIsolation.h"
 #include "AliCaloTrackReader.h"
-#include "AliStack.h"
+#include "AliMCEvent.h"
 #include "AliIsolationCut.h"
 #include "AliFiducialCut.h"
 #include "AliMCAnalysisUtils.h"
@@ -1589,15 +1589,15 @@ void AliAnaParticleIsolation::CalculateTrackSignalInCone(AliAODPWG4ParticleCorre
     fhPtInCone      ->Fill(ptTrig , pTtrack, GetEventWeight());
     fhPtTrackInCone ->Fill(ptTrig , pTtrack, GetEventWeight());
     
-    if(IsDataMC())
+    if( IsDataMC() && GetMC() )
     {
       Int_t partInConeCharge = 0, partInConePDG = 0;
       Bool_t physPrimary = kFALSE;
       Int_t trackLabel = TMath::Abs(track->GetLabel());
       
-      if( GetReader()->ReadStack() && GetMCStack())
+      if( GetReader()->ReadStack() )
       {
-        TParticle  * mcpartESD = static_cast<TParticle*>(GetMCStack()->Particle(trackLabel));
+        TParticle  * mcpartESD = GetMC()->Particle(trackLabel);
         if( mcpartESD ) 
         {
           partInConePDG    = mcpartESD->GetPdgCode();
@@ -1607,16 +1607,12 @@ void AliAnaParticleIsolation::CalculateTrackSignalInCone(AliAODPWG4ParticleCorre
       }
       else
       {
-        TClonesArray* mcparticles = GetReader()->GetAODMCParticles();
-        if(mcparticles)
+        AliAODMCParticle * mcpartAOD = (AliAODMCParticle *) GetMC()->GetTrack(trackLabel);
+        if( mcpartAOD )  
         {
-          AliAODMCParticle * mcpartAOD = (AliAODMCParticle *) mcparticles->At(trackLabel);
-          if( mcpartAOD )  
-          {
-            partInConeCharge = TMath::Abs(mcpartAOD->Charge());
-            partInConePDG    = mcpartAOD->GetPdgCode();
-            physPrimary      = mcpartAOD->IsPhysicalPrimary();
-          }
+          partInConeCharge = TMath::Abs(mcpartAOD->Charge());
+          partInConePDG    = mcpartAOD->GetPdgCode();
+          physPrimary      = mcpartAOD->IsPhysicalPrimary();
         }
       }
       
@@ -1819,7 +1815,6 @@ void AliAnaParticleIsolation::CalculateTrackSignalInCone(AliAODPWG4ParticleCorre
       if(GetReader()->IsPileUpFromEMCalAndNotSPD())    fhPtInConePileUp[5]->Fill(ptTrig, pTtrack, GetEventWeight());
       if(GetReader()->IsPileUpFromNotSPDAndNotEMCal()) fhPtInConePileUp[6]->Fill(ptTrig, pTtrack, GetEventWeight());
     }
-
   }
 
   fhConeSumPtTrack ->Fill(ptTrig, coneptsumTrack , GetEventWeight());
@@ -7079,6 +7074,8 @@ void  AliAnaParticleIsolation::MakeAnalysisFillHistograms()
 //______________________________________________________
 void AliAnaParticleIsolation::FillAcceptanceHistograms()
 {
+  if ( !GetMC() ) return;
+
   AliDebug(1,"Start");
   
   //Double_t photonY   = -100 ;
@@ -7091,7 +7088,7 @@ void AliAnaParticleIsolation::FillAcceptanceHistograms()
   Int_t    status    =  0 ;
   Int_t    tag       =  0 ;
   Int_t    mcIndex   =  0 ;
-  Int_t    nprim     = 0;
+  Int_t    nprim     = GetMC()->GetNumberOfTracks();
   
   TParticle        * primStack = 0;
   AliAODMCParticle * primAOD   = 0;
@@ -7110,24 +7107,6 @@ void AliAnaParticleIsolation::FillAcceptanceHistograms()
     overlapAngle = fMinCellsAngleOverlap*0.00382;
     minECalo = GetReader()->GetPHOSEMin();
   }
-  
-  // Get the ESD MC particles container
-  AliStack * stack = 0;
-  if( GetReader()->ReadStack() )
-  {
-    stack = GetMCStack();
-    if(!stack ) return;
-    nprim = stack->GetNtrack();
-  }
-  
-  // Get the AOD MC particles container
-  TClonesArray * mcparticles = 0;
-  if( GetReader()->ReadAODMCParticles() )
-  {
-    mcparticles = GetReader()->GetAODMCParticles();
-    if( !mcparticles ) return;
-    nprim = mcparticles->GetEntriesFast();
-  }
 
   for(Int_t i=0 ; i < nprim; i++)
   {
@@ -7135,7 +7114,7 @@ void AliAnaParticleIsolation::FillAcceptanceHistograms()
     
     if(GetReader()->ReadStack())
     {
-      primStack = stack->Particle(i) ;
+      primStack = GetMC()->Particle(i) ;
       if(!primStack)
       {
         AliWarning("ESD primaries pointer not available!!");
@@ -7150,7 +7129,7 @@ void AliAnaParticleIsolation::FillAcceptanceHistograms()
           (primStack->Energy() - primStack->Pz()) < 1e-3      ||
           (primStack->Energy() + primStack->Pz()) < 0           )  continue ; 
       
-      //printf("i %d, %s %d  %s %d \n",i, stack->Particle(i)->GetName(), stack->Particle(i)->GetPdgCode(),
+      //printf("i %d, %s %d  %s %d \n",i, GetMC()->Particle(i)->GetName(), GetMC()->Particle(i)->GetPdgCode(),
       //       primStack->GetName(), primStack->GetPdgCode());
       
       //photonY   = 0.5*TMath::Log((prim->Energy()+prim->Pz())/(prim->Energy()-prim->Pz())) ;
@@ -7160,7 +7139,7 @@ void AliAnaParticleIsolation::FillAcceptanceHistograms()
     }
     else
     {
-      primAOD = (AliAODMCParticle *) mcparticles->At(i);
+      primAOD = (AliAODMCParticle *) GetMC()->GetTrack(i);
       if(!primAOD)
       {
         AliWarning("AOD primaries pointer not available!!");
@@ -7295,12 +7274,15 @@ void AliAnaParticleIsolation::FillAcceptanceHistograms()
     
     // ////////////////////ISO MC/////////////////////////
     Double_t sumPtInCone = 0; Double_t dR=0. ;
+    
     TParticle        * mcisopStack = 0;
     AliAODMCParticle * mcisopAOD   = 0;
+    
     Int_t partInConeStatus = -1, partInConeMother = -1;
     Double_t partInConePt = 0, partInConeE = 0, partInConeEta = 0, partInConePhi = 0;
     Int_t partInConeCharge = 0, npart = 0, partInConePDG = 0;
     Bool_t physPrimary = kFALSE;
+    
     for(Int_t ip = 0; ip < nprim ; ip++)
     {
       if(ip==i) continue;
@@ -7313,7 +7295,7 @@ void AliAnaParticleIsolation::FillAcceptanceHistograms()
       
       if( GetReader()->ReadStack() )
       {
-        mcisopStack = static_cast<TParticle*>(stack->Particle(ip));
+        mcisopStack = GetMC()->Particle(ip);
         if( !mcisopStack ) continue;
         partInConeStatus = mcisopStack->GetStatusCode();
         
@@ -7341,7 +7323,7 @@ void AliAnaParticleIsolation::FillAcceptanceHistograms()
       }
       else
       {
-        mcisopAOD   = (AliAODMCParticle *) mcparticles->At(ip);
+        mcisopAOD   = (AliAODMCParticle *) GetMC()->GetTrack(ip);
         if( !mcisopAOD )   continue;
         
         partInConeStatus = mcisopAOD->GetStatus();
