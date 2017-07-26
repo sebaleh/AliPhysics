@@ -108,7 +108,7 @@ void AliEmcalCorrectionCellCombineCollections::SetupCombinedCells()
   // Add it to the input event
   // While the CorrectionTask can handle cells in the external event, it is not well handled by
   // other classes, so it should stay in the input event to ensure it is easily available.
-  AddObjectToEvent(fCombinedCells, fEvent);
+  AddObjectToEvent(fCombinedCells, fEventManager.InputEvent());
 
   AliDebugStream(2) << "Added combined calo cells \"" << fCombinedCells->GetName() << "\" with " << fCombinedCells->GetNumberOfCells() << " cells to the input event" << std::endl;
 
@@ -199,6 +199,7 @@ void AliEmcalCorrectionCellCombineCollections::AddCellsToCombinedCellObject(AliV
 /**
  * Add object to event. Adapted from AliAnalysisTaskEmcal.
  * @param[in] obj Object to be added
+ * @param[in] event Event to which the object is added
  * @param[in] attempt If true don't handle error
  */
 void AliEmcalCorrectionCellCombineCollections::AddObjectToEvent(TObject *obj, AliVEvent * event, Bool_t attempt)

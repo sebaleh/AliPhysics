@@ -21,7 +21,7 @@ add_subdirectory(EVCHAR/FlowVectorCorrections/QnCorrectionsInterface)
 add_subdirectory(MUON)
 add_subdirectory(EMCAL)
 add_subdirectory(Alignment)
-
+add_subdirectory(scripts)
 #Module
 set(MODULE PWGPP)
 add_definitions(-D_MODULE_="${MODULE}")
@@ -239,6 +239,10 @@ set ( SRCS20
   HMTFqa/AliAnalysisTaskLeadingPt.cxx
   HMTFqa/AliAnalysisMultCorrTaskQAPF.cxx
   )
+set ( SRCS21
+  vdM/AliAnalysisTaskVdM.cxx
+  vdM/AliXMLEngine.cxx
+  )
 
 list ( APPEND SRCS
   ${SRCS1}
@@ -261,6 +265,7 @@ list ( APPEND SRCS
   ${SRCS18}
   ${SRCS19}
   ${SRCS20}
+  ${SRCS21}
   )
 
 ###add_subdirectory(Alignment)
@@ -397,5 +402,7 @@ install(FILES BeamGasMonitoring/macros/AddTaskMBVeto.C
               BeamGasMonitoring/macros/AddTaskBGMonitorQAHLT.C
 	      BeamGasMonitoring/macros/AddTaskBGMonitorQATrain.C
 	      DESTINATION PWGPP/BeamGasMonitoring/macros)
+install(FILES vdM/AddAnalysisTaskVdM.C
+              DESTINATION PWGPP/vdM)
 
 message(STATUS "PWGPP enabled")

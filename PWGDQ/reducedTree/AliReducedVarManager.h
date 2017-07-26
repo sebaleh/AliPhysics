@@ -378,28 +378,38 @@ class AliReducedVarManager : public TObject {
     // Common pair/track variables
     kPt=kNEventVars,
     kPtMC,
+    kPtMCfromLegs,             // MC truth pt computed using the decay leg kinematics
     kP,      
     kPMC,
+    kPMCfromLegs,
     kPx,   
     kPxMC,
+    kPxMCfromLegs,
     kPy,     
     kPyMC,
+    kPyMCfromLegs,
     kPz,     
     kPzMC,
+    kPzMCfromLegs,
     kTheta,
     kThetaMC,
+    kThetaMCfromLegs,
     kEta,
     kEtaMC,
+    kEtaMCfromLegs,
     kPhi,     
     kPhiMC,
+    kPhiMCfromLegs,
     kCosNPhi,   
     kSinNPhi = kCosNPhi+6,
     kPtSquared = kSinNPhi+6,
     kOneOverSqrtPt,                   // one over square root of pT
     kMass,
     kMassMC,
+    kMassMCfromLegs,
     kRap,
     kRapMC,
+    kRapMCfromLegs,
     kPdgMC,
     kCharge = kPdgMC+4,
     kVZEROFlowVn,                     // v_n using VZERO RP
@@ -559,7 +569,7 @@ class AliReducedVarManager : public TObject {
   static void FillCorrelationInfo(AliReducedPairInfo* p, AliReducedBaseTrack* t, Float_t* values);
   static void FillCaloClusterInfo(AliReducedCaloClusterInfo* cl, Float_t* values);
   static void FillTrackingStatus(AliReducedTrackInfo* p, Float_t* values);
-  static void FillTrackingFlags(AliReducedTrackInfo* p, Float_t* values);
+ // static void FillTrackingFlags(AliReducedTrackInfo* p, Float_t* values);
   static void FillMCTruthInfo(AliReducedTrackInfo* p, Float_t* values, AliReducedTrackInfo* leg1 = 0x0, AliReducedTrackInfo* leg2 = 0x0);
   
   static void PrintTrackFlags(AliReducedTrackInfo* track);

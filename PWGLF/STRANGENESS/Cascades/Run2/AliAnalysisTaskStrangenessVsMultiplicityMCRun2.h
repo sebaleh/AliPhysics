@@ -43,6 +43,7 @@ class AliESDFMD;
 class AliCFContainer;
 class AliV0Result;
 class AliCascadeResult;
+class AliExternalTrackParam; 
 
 //#include "TString.h"
 //#include "AliESDtrackCuts.h"
@@ -78,6 +79,18 @@ public:
     void SetUseOnTheFlyV0Cascading( Bool_t lUseOnTheFlyV0Cascading = kTRUE ){
         //Highly experimental, use with care!
         fkUseOnTheFlyV0Cascading = lUseOnTheFlyV0Cascading;
+    }
+    void SetDoImprovedCascadeVertexFinding( Bool_t lOpt = kTRUE ){
+        //Highly experimental, use with care!
+        fkDoImprovedCascadeVertexFinding = lOpt;
+    }
+    void SetIfImprovedPerformInitialLinearPropag( Bool_t lOpt = kTRUE ){
+        //Highly experimental, use with care!
+        fkIfImprovedPerformInitialLinearPropag = lOpt;
+    }
+    void SetIfImprovedExtraPrecisionFactor( Double_t lOpt ){
+        //Highly experimental, use with care!
+        fkIfImprovedExtraPrecisionFactor = lOpt;
     }
 
 //---------------------------------------------------------------------------------------
@@ -218,9 +231,20 @@ public:
     };
     typedef std::vector<AliAnalysisTaskStrangenessVsMultiplicityMCRun2::FMDhit> FMDhits;
 //---------------------------------------------------------------------------------------
-   AliAnalysisTaskStrangenessVsMultiplicityMCRun2::FMDhits GetFMDhits(AliAODEvent* aodEvent) const;
+    AliAnalysisTaskStrangenessVsMultiplicityMCRun2::FMDhits GetFMDhits(AliAODEvent* aodEvent) const;
 //---------------------------------------------------------------------------------------
-
+    Double_t PropagateToDCA(AliESDv0 *v, AliExternalTrackParam *t, AliESDEvent *event, Double_t b);
+    //Helper functions
+    Double_t Det(Double_t a00, Double_t a01, Double_t a10, Double_t a11) const;
+    Double_t Det(Double_t a00,Double_t a01,Double_t a02,
+                 Double_t a10,Double_t a11,Double_t a12,
+                 Double_t a20,Double_t a21,Double_t a22) const;
+    void Evaluate(const Double_t *h, Double_t t,
+                  Double_t r[3],  //radius vector
+                  Double_t g[3],  //first defivatives
+                  Double_t gg[3]); //second derivatives
+    Double_t GetErrorInPosition(AliExternalTrackParam *t1) const;
+//---------------------------------------------------------------------------------------
 
 private:
     // Note : In ROOT, "//!" means "do not stream the data from Master node to Worker node" ...
@@ -252,8 +276,12 @@ private:
     Bool_t fkPreselectDedx;
     Bool_t fkPreselectPID;
     Bool_t fkUseOnTheFlyV0Cascading;
+    Bool_t fkDoImprovedCascadeVertexFinding;
+    Bool_t fkIfImprovedPerformInitialLinearPropag;
+    Double_t fkIfImprovedExtraPrecisionFactor;
     Bool_t fkDebugWrongPIDForTracking; //if true, add extra information to TTrees for debugging
     Bool_t fkDebugBump; //if true, add extra information to TTrees for debugging
+    Bool_t fkDebugParenthood; //if true, add extra info to TTrees (full parenthood) for debugging
     Bool_t fkDebugOOBPileup; // if true, add extra information to TTrees for pileup study
     Bool_t fkDoExtraEvSels; //use AliEventCuts for event selection
 
@@ -467,7 +495,58 @@ private:
     Float_t fTreeCascVarCascadeDecayY; //!
     Float_t fTreeCascVarCascadeDecayZ; //!
 
+    Float_t fTreeCascVarV0DecayXMC; //!
+    Float_t fTreeCascVarV0DecayYMC; //!
+    Float_t fTreeCascVarV0DecayZMC; //!
+    Float_t fTreeCascVarCascadeDecayXMC; //!
+    Float_t fTreeCascVarCascadeDecayYMC; //!
+    Float_t fTreeCascVarCascadeDecayZMC; //!
+
+    //Vars for studying cascade decay point calculations
+    Float_t fTreeCascVarBachelorDCAptX; //!
+    Float_t fTreeCascVarBachelorDCAptY; //!
+    Float_t fTreeCascVarBachelorDCAptZ; //!
+    Float_t fTreeCascVarV0DCAptX; //!
+    Float_t fTreeCascVarV0DCAptY; //!
+    Float_t fTreeCascVarV0DCAptZ; //!
+    Float_t fTreeCascVarDCADaughters_Test; //!
+    Float_t fTreeCascVarBachelorDCAptSigmaX2; //
+    Float_t fTreeCascVarBachelorDCAptSigmaY2; //
+    Float_t fTreeCascVarBachelorDCAptSigmaZ2; //
+    Float_t fTreeCascVarV0DCAptUncertainty_V0Pos; //
+    Float_t fTreeCascVarV0DCAptUncertainty_V0Ang; //
+    
+    Float_t fTreeCascVarV0DCAptPosSigmaX2; //
+    Float_t fTreeCascVarV0DCAptPosSigmaY2; //
+    Float_t fTreeCascVarV0DCAptPosSigmaZ2; //
+    Float_t fTreeCascVarV0DCAptPosSigmaSnp2; //
+    Float_t fTreeCascVarV0DCAptPosSigmaTgl2; //
+    
+    Float_t fTreeCascVarV0DCAptNegSigmaX2; //
+    Float_t fTreeCascVarV0DCAptNegSigmaY2; //
+    Float_t fTreeCascVarV0DCAptNegSigmaZ2; //
+    Float_t fTreeCascVarV0DCAptNegSigmaSnp2; //
+    Float_t fTreeCascVarV0DCAptNegSigmaTgl2; //
+    
+    //Extended information: uncertainties at point closest to pV
+    Float_t fTreeCascVarBachDCAPVSigmaX2; //
+    Float_t fTreeCascVarBachDCAPVSigmaY2; //
+    Float_t fTreeCascVarBachDCAPVSigmaZ2; //
+    Float_t fTreeCascVarPosDCAPVSigmaX2; //
+    Float_t fTreeCascVarPosDCAPVSigmaY2; //
+    Float_t fTreeCascVarPosDCAPVSigmaZ2; //
+    Float_t fTreeCascVarNegDCAPVSigmaX2; //
+    Float_t fTreeCascVarNegDCAPVSigmaY2; //
+    Float_t fTreeCascVarNegDCAPVSigmaZ2; //
+
+    Float_t fTreeCascVarPrimVertexX;
+    Float_t fTreeCascVarPrimVertexY;
+    Float_t fTreeCascVarPrimVertexZ;
+    
+    Float_t fTreeCascVarMagField; // for X-checks
+    
     Float_t fTreeCascVarV0Lifetime; //! //V0 lifetime (actually, mL/p)
+    Float_t fTreeCascVarV0ChiSquare; //! //V0 chi2 (defined only for on-the-fly or refitted offline) 
     //Track Labels (check for duplicates, etc)
     Int_t fTreeCascVarNegIndex; //!
     Int_t fTreeCascVarPosIndex; //!
@@ -521,7 +600,33 @@ private:
     Bool_t fTreeCascVarIsPhysicalPrimaryNegativeGrandMother;
     Bool_t fTreeCascVarIsPhysicalPrimaryPositiveGrandMother;
     Bool_t fTreeCascVarIsPhysicalPrimaryBachelorGrandMother;
+    
+    //Cluster information for all daughter tracks
+    Bool_t fTreeCascVarPosITSClusters0;
+    Bool_t fTreeCascVarPosITSClusters1;
+    Bool_t fTreeCascVarPosITSClusters2;
+    Bool_t fTreeCascVarPosITSClusters3;
+    Bool_t fTreeCascVarPosITSClusters4;
+    Bool_t fTreeCascVarPosITSClusters5;
+    
+    Bool_t fTreeCascVarNegITSClusters0;
+    Bool_t fTreeCascVarNegITSClusters1;
+    Bool_t fTreeCascVarNegITSClusters2;
+    Bool_t fTreeCascVarNegITSClusters3;
+    Bool_t fTreeCascVarNegITSClusters4;
+    Bool_t fTreeCascVarNegITSClusters5;
 
+    Bool_t fTreeCascVarBachITSClusters0;
+    Bool_t fTreeCascVarBachITSClusters1;
+    Bool_t fTreeCascVarBachITSClusters2;
+    Bool_t fTreeCascVarBachITSClusters3;
+    Bool_t fTreeCascVarBachITSClusters4;
+    Bool_t fTreeCascVarBachITSClusters5;
+    
+    //Uncertainty information on mass (from KF) for testing purposes
+    Float_t fTreeCascVarV0LambdaMassError;
+    Float_t fTreeCascVarV0AntiLambdaMassError;
+    
     //Well, why not? Let's give it a shot
     Int_t   fTreeCascVarSwappedPID;         //!
 

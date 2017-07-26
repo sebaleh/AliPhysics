@@ -27,6 +27,8 @@
 
 
 #include "TGraph.h"
+#include "AliTriggerAnalysis.h"
+#include "AliESDFMD.h"
 #include "AliCEPUtils.h"
 
 //------------------------------------------------------------------------------
@@ -68,7 +70,7 @@ TH1F* AliCEPUtils::GetHistStatsFlow()
     AliCEPBase::kBinLastValue,0,AliCEPBase::kBinLastValue);
 	TAxis* axis = hist->GetXaxis();
 
-  printf("Preparing SatsFlow histogram\n");
+  printf("Preparing statsFlow histogram\n");
 	axis->SetBinLabel(AliCEPBase::kBinTotalInput+1,   "total input");
 	axis->SetBinLabel(AliCEPBase::kBinGoodInput+1,    "good input");
 	axis->SetBinLabel(AliCEPBase::kBinMCEvent+1,      "MC");
@@ -118,6 +120,14 @@ TList* AliCEPUtils::GetQArnumHists(Int_t rnummin, Int_t rnummax)
   lhh->Add(fhh04);
   TH1F* fhh05 = new TH1F("nV0DG","nV0DG",nch,rnummin,rnummax);
   lhh->Add(fhh05);
+  TH1F* fhh06 = new TH1F("nADDG","nADDG",nch,rnummin,rnummax);
+  lhh->Add(fhh06);
+  TH1F* fhh07 = new TH1F("nFMDDG","nFMDDG",nch,rnummin,rnummax);
+  lhh->Add(fhh07);
+  TH1F* fhh08 = new TH1F("nETDG","nETDG",nch,rnummin,rnummax);
+  lhh->Add(fhh08);
+  TH1F* fhh09 = new TH1F("nETNDG","nETNDG",nch,rnummin,rnummax);
+  lhh->Add(fhh09);
   
   return lhh;
   
@@ -312,6 +322,30 @@ TList* AliCEPUtils::GetV0QAHists()
 }
 
 //------------------------------------------------------------------------------
+// definition of QA histograms used in
+// AliCEPUtils::FMDAnalysis
+TList* AliCEPUtils::GetFMDQAHists()
+{
+  // initialisations
+  TList *lhh = new TList();
+  lhh->SetOwner();
+  
+  // define histograms and graphs and add them to the list lhh
+  printf("Preparing FMDAnalysis histograms\n");
+  TH1F* fhh01 = new TH1F("FMDAmult","FMDAmult",500,0.,2.);
+  lhh->Add(fhh01);
+  TH1F* fhh02 = new TH1F("FMDAtotmult","FMDAtotmult",500,0.,2.);
+  lhh->Add(fhh02);
+  TH1F* fhh03 = new TH1F("FMDCmult","FMDCmult",500,0.,2.);
+  lhh->Add(fhh03);
+  TH1F* fhh04 = new TH1F("FMDCtotmult","FMDCtotmult",500,0.,2.);
+  lhh->Add(fhh04);
+  
+  return lhh;
+  
+}
+
+//------------------------------------------------------------------------------
 Int_t AliCEPUtils::GetEventType(const AliVEvent *Event)
 {
 	// checks of which type a event is:
@@ -372,6 +406,10 @@ UInt_t AliCEPUtils::GetVtxPos(AliVEvent *Event, TVector3 *fVtxPos)
     Bool_t hasSPD = spdVertex->GetStatus();
     Bool_t hasTrk = trkVertex->GetStatus();
   
+    // SPD/track vertex?
+    if (hasSPD) fVtxType |= AliCEPBase::kVtxSPD;
+    if (hasTrk) fVtxType |= AliCEPBase::kVtxTracks;
+    
     // Note that AliVertex::GetStatus checks that N_contributors is > 0
     // reject events if both are explicitly requested and none is available
     if (!(hasSPD && hasTrk)) return AliCEPBase::kVtxUnknown;
@@ -380,37 +418,32 @@ UInt_t AliCEPUtils::GetVtxPos(AliVEvent *Event, TVector3 *fVtxPos)
     if (hasSPD) {
       if (spdVertex->IsFromVertexerZ() &&
         !(spdVertex->GetDispersion()<0.04 &&
-        spdVertex->GetZRes()<0.25)) return AliCEPBase::kVtxErrRes;
+        spdVertex->GetZRes()<0.25)) fVtxType |= AliCEPBase::kVtxErrRes;
     }
   
-    // reject events if none between the SPD or track verteces are available
-    // if no trk vertex, try to fall back to SPD vertex;
-    if (hasTrk) {
-      fVtxType |= AliCEPBase::kVtxTracks;
-      if (hasSPD) {
-        fVtxType |= AliCEPBase::kVtxSPD;
-        // check the proximity between the spd vertex and trak vertex, and reject if not satisfied
-        if (TMath::Abs(spdVertex->GetZ() - trkVertex->GetZ())>0.5) return AliCEPBase::kVtxErrDif;
-      }
-      
-    } else {
-      fVtxType |= AliCEPBase::kVtxSPD;
+    // check the proximity between the spd vertex and trak vertex, and reject if not satisfied
+    if (hasSPD && hasTrk) {
+      if (TMath::Abs(spdVertex->GetZ() - trkVertex->GetZ())>0.5)
+        fVtxType |= AliCEPBase::kVtxErrDif;
     }
   
   }
   
   // Cut on the vertex z position
   const AliVVertex *vertex = Event->GetPrimaryVertex();
-  if (TMath::Abs(vertex->GetZ())>10) return AliCEPBase::kVtxErrZ;
+  if (vertex->GetStatus()) {
+    if (TMath::Abs(vertex->GetZ())>10) fVtxType |= AliCEPBase::kVtxErrZ;
   
-  // set the vertex position fVtxPos
-  fVtxPos->SetXYZ(vertex->GetX(),vertex->GetY(),vertex->GetZ());
+    // set the vertex position fVtxPos
+    fVtxPos->SetXYZ(vertex->GetX(),vertex->GetY(),vertex->GetZ());
+  }
   
   return fVtxType;
   
 }
 
 //------------------------------------------------------------------------------
+// past-future protection flags
 void AliCEPUtils::BBFlagAnalysis (
   AliVEvent *Event,
   TList *lhh)
@@ -731,6 +764,61 @@ void AliCEPUtils::V0Analysis (
     
   }
   
+}
+
+//------------------------------------------------------------------------------
+// see also AliTriggerAnalysis::FMDHitCombinations
+// computes parameters for FMD performance analysis
+void AliCEPUtils::FMDAnalysis (
+  AliESDEvent *Event,
+	AliTriggerAnalysis *fTrigger,
+  TList *lhh)
+{
+  if (!lhh) return;
+  
+  // initialisations
+  AliTriggerAnalysis::AliceSide side;
+  Int_t detFrom, detTo;
+  
+  // Workaround for AliESDEvent::GetFMDData is not const!
+  const AliESDFMD* fmdData = (AliESDFMD*)Event->GetFMDData();
+  if (!fmdData) {
+    AliError("AliESDFMD not available");
+    return;
+  }
+    
+  // loop over A and C side
+  for (Int_t ii=0; ii<2; ii++) {
+  
+    if (ii == 0) side == AliTriggerAnalysis::kASide;
+    if (ii == 1) side == AliTriggerAnalysis::kCSide;
+    
+    detFrom = (side == AliTriggerAnalysis::kASide) ? 1 : 3;
+    detTo   = (side == AliTriggerAnalysis::kASide) ? 2 : 3;
+  
+    Float_t totalMult = 0;
+    for (UShort_t det=detFrom;det<=detTo;det++) {
+      Int_t nRings = (det == 1 ? 1 : 2);
+      for (UShort_t ir = 0; ir < nRings; ir++) {
+        Char_t   ring = (ir == 0 ? 'I' : 'O');
+        UShort_t nsec = (ir == 0 ? 20  : 40);
+        UShort_t nstr = (ir == 0 ? 512 : 256);
+        for (UShort_t sec =0; sec < nsec;  sec++) {
+          for (UShort_t strip = 0; strip < nstr; strip++) {
+            Float_t mult = fmdData->Multiplicity(det,ring,sec,strip);
+            if (mult == AliESDFMD::kInvalidMult) continue;
+            ((TH1F*)lhh->At(2*ii))->Fill(mult);
+            if (mult > 0.005)
+              totalMult = totalMult + mult;
+            else {
+              ((TH1F*)lhh->At(2*ii+1))->Fill(totalMult);
+              totalMult = 0;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1300,19 +1388,18 @@ void AliCEPUtils::DetermineMCprocessType (
 		  
       // get the name of this generator
       fMCGenerator = TString(header->GetName());
-      //printf("MC generator name: %s\n",fMCGenerator.Data());
+      // printf("MC generator name: %s\n",fMCGenerator.Data());
       Int_t nprod = header->NProduced();
 			// printf("Number of produced particles: %i\n",nprod);
 
       // Pythia
 			if (fMCGenerator == "Pythia") {
 				fMCProcess = ((AliGenPythiaEventHeader*)header)->ProcessType();
-				//printf("Pythia process type: %i\n",fMCProcess);
+				// printf("Pythia process type: %i\n",fMCProcess);
         switch(fMCProcess) {
-				case 92:
-				case 93:
-				case 94:
-				case 104: fMCProcessType = AliCEPBase::kProctypeSD; break;
+				case 101: fMCProcessType = AliCEPBase::kProctypeMB; break;
+				case 103: fMCProcessType = AliCEPBase::kProctypeSDA; break;
+				case 104: fMCProcessType = AliCEPBase::kProctypeSDB; break;
 				case 105: fMCProcessType = AliCEPBase::kProctypeDD; break;
 				case 106: fMCProcessType = AliCEPBase::kProctypeCD; break;
 				default:  fMCProcessType = AliCEPBase::kProctypeND; break;
@@ -1332,9 +1419,11 @@ void AliCEPUtils::DetermineMCprocessType (
 				//printf("DPMjet process type: %i\n",fMCProcess);
 				switch(fMCProcess) {
 				case 1:  fMCProcessType = AliCEPBase::kProctypeND; break;
-				case 3:  fMCProcessType = AliCEPBase::kProctypeSD; break;
-				case 4:  fMCProcessType = AliCEPBase::kProctypeDD; break;
-				case 5:  fMCProcessType = AliCEPBase::kProctypeCD; break;
+				case 2:  fMCProcessType = AliCEPBase::kProctypeEL; break;
+				case 4:  fMCProcessType = AliCEPBase::kProctypeCD; break;
+				case 5:  fMCProcessType = AliCEPBase::kProctypeSDA; break;
+				case 6:  fMCProcessType = AliCEPBase::kProctypeSDB; break;
+				case 7:  fMCProcessType = AliCEPBase::kProctypeDD; break;
 				default: fMCProcessType = AliCEPBase::kProctypeND; break;
 				}
 			}
@@ -1343,7 +1432,7 @@ void AliCEPUtils::DetermineMCprocessType (
     
     // if (fMCProcessType == AliCEPBase::kProctypeCD)
     //   printf("Central Diffractive Event detected!\n");
-    printf("MC process ID %i\n",fMCProcess);
+    // printf("MC process ID %i\n",fMCProcess);
 	}
   
 }

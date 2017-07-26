@@ -34,7 +34,7 @@
 #include "AliPIDResponse.h"
 #include "TH1.h"
 #include "TH2.h"
-#include "AliStack.h"
+#include "AliMCEvent.h"
 #include "TObjString.h"
 #include "AliAODEvent.h"
 #include "AliESDEvent.h"
@@ -68,6 +68,8 @@ AliPrimaryPionCuts::AliPrimaryPionCuts(const char *name,const char *title) : Ali
 	fDoEtaCut(kFALSE),
 	fPtCut(0.0),
 	fMinClsTPC(0), // minimum clusters in the TPC
+    fChi2PerClsTPC(0), // maximum Chi2 per cluster in the TPC
+    fRequireTPCRefit(kFALSE), // require a refit in the TPC
 	fMinClsTPCToF(0), // minimum clusters to findable clusters
 	fDodEdxSigmaITSCut(kFALSE),
 	fDodEdxSigmaTPCCut(kTRUE),
@@ -84,7 +86,9 @@ AliPrimaryPionCuts::AliPrimaryPionCuts(const char *name,const char *title) : Ali
 	fDoMassCut(kFALSE),
 	fMassCut(10),
 	fDoWeights(kFALSE),
+    fMaxDCAToVertexZ(8000),
 	fCutString(NULL),
+  fCutStringRead(""),
 	fHistCutIndex(NULL),
 	fHistdEdxCuts(NULL),
 	fHistITSdEdxbefore(NULL),
@@ -267,12 +271,12 @@ Bool_t AliPrimaryPionCuts::InitPIDResponse(){
   return kFALSE;
 }
 ///________________________________________________________________________
-Bool_t AliPrimaryPionCuts::PionIsSelectedMC(Int_t labelParticle,AliStack *fMCStack){
+Bool_t AliPrimaryPionCuts::PionIsSelectedMC(Int_t labelParticle,AliMCEvent *mcEvent){
 	
-	if( labelParticle < 0 || labelParticle >= fMCStack->GetNtrack() ) return kFALSE;
-// 	if( fMCStack->IsPhysicalPrimary(labelParticle) == kFALSE ) return kFALSE;  // moved to actual tasks
+    if( labelParticle < 0 || labelParticle >= mcEvent->GetNumberOfTracks() ) return kFALSE;
+// 	if( mcEvent->IsPhysicalPrimary(labelParticle) == kFALSE ) return kFALSE;  // moved to actual tasks
 
-	TParticle* particle = fMCStack->Particle(labelParticle);
+    TParticle* particle = mcEvent->Particle(labelParticle);
 
 	if( TMath::Abs( particle->GetPdgCode() ) != 211 )  return kFALSE;
 	
@@ -487,6 +491,8 @@ Bool_t AliPrimaryPionCuts::UpdateCutString() {
 
 ///________________________________________________________________________
 Bool_t AliPrimaryPionCuts::InitializeCutsFromCutString(const TString analysisCutSelection ) {
+  fCutStringRead = Form("%s",analysisCutSelection.Data());
+  
 	// Initialize Cuts from a given Cut string
 
 	AliInfo(Form("Set PionCuts Number: %s",analysisCutSelection.Data()));
@@ -495,13 +501,15 @@ Bool_t AliPrimaryPionCuts::InitializeCutsFromCutString(const TString analysisCut
 		AliError(Form("Cut selection has the wrong length! size is %d, number of cuts is %d", analysisCutSelection.Length(), kNCuts));
 		return kFALSE;
 	}
-	if(!analysisCutSelection.IsDigit()){
-		AliError("Cut selection contains characters");
+	if(!analysisCutSelection.IsAlnum()){
+		AliError("Cut selection is not alphanumeric");
 		return kFALSE;
 	}
 	
-	const char *cutSelection = analysisCutSelection.Data();
-	#define ASSIGNARRAY(i)	fCuts[i] = cutSelection[i] - '0'
+  TString analysisCutSelectionLowerCase = Form("%s",analysisCutSelection.Data());
+  analysisCutSelectionLowerCase.ToLower();
+	const char *cutSelection = analysisCutSelectionLowerCase.Data();
+  #define ASSIGNARRAY(i)  fCuts[i] = ((int)cutSelection[i]>=(int)'a') ? cutSelection[i]-'a'+10 : cutSelection[i]-'0'
 	for(Int_t ii=0;ii<kNCuts;ii++){
 		ASSIGNARRAY(ii);
 	}
@@ -608,6 +616,9 @@ void AliPrimaryPionCuts::PrintCutsWithValues() {
 	printf("\t %s \n", fStringITSClusterCut.Data());
 	printf("\t min N cluster TPC > %3.2f \n", fMinClsTPC);
 	printf("\t min N cluster TPC/ findable > %3.2f \n", fMinClsTPCToF);
+
+    printf("\t max Chi2 per cluster TPC < %3.2f \n", fChi2PerClsTPC);
+    printf("\t require TPC refit ? %d \n", fRequireTPCRefit);
 // 	printf("\t dca > %3.2f \n", fMinClsTPCToF);
 // 	"kDCAcut",				// 3
 	printf("\t min pT > %3.2f \n", fPtCut);
@@ -837,7 +848,16 @@ Bool_t AliPrimaryPionCuts::SetTPCClusterCut(Int_t clsTPCCut){
 			fMinClsTPCToF= 0.35;
 			fUseCorrectedTPCClsInfo=1;
 			break;
-		
+        case 10:
+             fMinClsTPC     = 80.;
+             fChi2PerClsTPC = 4;
+             fRequireTPCRefit    = kTRUE;
+             fEsdTrackCuts->SetMinNClustersTPC(fMinClsTPC);
+             // Other Cuts concerning TPC
+             fEsdTrackCuts->SetMaxChi2PerClusterTPC(fChi2PerClsTPC);
+             fEsdTrackCuts->SetRequireTPCRefit(fRequireTPCRefit);
+        break;
+
 		default:
 			cout<<"Warning: clsTPCCut not defined "<<clsTPCCut<<endl;
 			return kFALSE;
@@ -931,7 +951,7 @@ Bool_t AliPrimaryPionCuts::SetDCACut(Int_t dcaCut)
 			fEsdTrackCuts->SetMaxDCAToVertexXY(1000);
 			fEsdTrackCuts->SetMaxChi2TPCConstrainedGlobal(36);
 			break;
-		case 1: 
+        case 1:
 			fEsdTrackCuts->SetMaxDCAToVertexXYPtDep("0.0182+0.0350/pt^1.01");
 			fEsdTrackCuts->SetMaxChi2TPCConstrainedGlobal(36);
 			break;
@@ -940,6 +960,12 @@ Bool_t AliPrimaryPionCuts::SetDCACut(Int_t dcaCut)
 			fEsdTrackCuts->SetMaxDCAToVertexXY(1);
 			fEsdTrackCuts->SetMaxChi2TPCConstrainedGlobal(36);
 			break; 
+        case 3:
+            fMaxDCAToVertexZ = 3.0;
+            fEsdTrackCuts->SetMaxDCAToVertexXYPtDep("0.0182+0.0350/pt^1.01");
+            fEsdTrackCuts->SetMaxChi2TPCConstrainedGlobal(36);
+            fEsdTrackCuts->SetMaxDCAToVertexZ(fMaxDCAToVertexZ);
+            break;
 		default:
 			cout<<"Warning: dcaCut not defined "<<dcaCut<<endl;
 			return kFALSE;
@@ -1041,11 +1067,7 @@ Bool_t AliPrimaryPionCuts::SetMassCut(Int_t massCut){
 ///________________________________________________________________________
 TString AliPrimaryPionCuts::GetCutNumber(){
 	// returns TString with current cut number
-	TString a(kNCuts);
-	for(Int_t ii=0;ii<kNCuts;ii++){
-		a.Append(Form("%d",fCuts[ii]));
-	}
-	return a;
+	return fCutStringRead;
 }
 
 

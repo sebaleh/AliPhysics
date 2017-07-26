@@ -26,7 +26,8 @@ AliAnalysisTaskHFEpACorrelation *AddTaskHFEpACorrelation(
                                                          Bool_t UseGlobalTracksForHadrons = kTRUE,
                                                          Int_t CentralityEstimator = 0,
                                                          TString HadronEfficiencyFile = "alien:///alice/cern.ch/user/h/hzanoli/Efficiency/Hadron_Tracking.root",
-                                                         TString BackgroundWFile = "alien:///alice/cern.ch/user/h/hzanoli/BackgroundW/BackgroundW.root"
+                                                         TString BackgroundWFile = "alien:///alice/cern.ch/user/h/hzanoli/BackgroundW/BackgroundW.root",
+                                                         TString BackgroundWFileToData = "alien:///alice/cern.ch/user/h/hzanoli/BackgroundW/BackgroundWToData.root"
                                                          )
 {
     AliAnalysisManager *mgr = AliAnalysisManager::GetAnalysisManager();
@@ -71,8 +72,8 @@ AliAnalysisTaskHFEpACorrelation *AddTaskHFEpACorrelation(
     
     if(pTBin ==2)
     {
-        Float_t pTBinsCorrelation[] = {1,2,4,6};
-        task->SetpTBins(4,pTBinsCorrelation);
+        Float_t pTBinsCorrelation[] = {0.5,1,2,4,6};
+        task->SetpTBins(5,pTBinsCorrelation);
     }
     
     else if (pTBin ==3)
@@ -106,16 +107,38 @@ AliAnalysisTaskHFEpACorrelation *AddTaskHFEpACorrelation(
             if (Pi0)
                 task->SetBackgroundPi0Weight(Pi0);
             else
-                printf("MC analysis with no pi0 weight\n");
+                printf("MC analysis with no pi0 weight hijing\n");
             
             if (Eta)
                 task->SetBackgroundEtaWeight(Eta);
             else
-                printf("MC analysis with no Eta weight\n");
+                printf("MC analysis with no Eta weight hijing \n");
             
         }
         else
-            printf("Background weight not available\n");
+            printf("Background weight to Hijing not available\n");
+        
+        TFile *fileBkgWToData= TFile::Open(BackgroundWFileToData.Data());
+        
+        if (fileBkgWToData)
+        {
+            TH1F *Pi0W = (TH1F*) fileBkgWToData->Get("Pi0");
+            TH1F *EtaW = (TH1F*) fileBkgWToData->Get("Eta");
+            
+            if (Pi0W)
+                task->SetBackgroundPi0WeightToData(Pi0W);
+            else
+                printf("MC analysis with no pi0 weight to data \n");
+            
+            if (Eta)
+                task->SetBackgroundEtaWeightToData(EtaW);
+            else
+                printf("MC analysis with no Eta weight to data\n");
+            
+        }
+        else
+            printf("Background weight to Data not available. Check the path to the file! \n");
+
     }
     
     

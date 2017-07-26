@@ -675,7 +675,7 @@ void AlidNdPtUnifiedAnalysisTask::UserExec(Option_t *){ // Main loop (called for
 
       /// \li Acceptance cuts for generated particles
       // lower pt cut is disabled for mpt analysis! (Nch should be counted down to pt=0)!
-      if(!IsTrackAcceptedKinematics(mcGenParticle, kFALSE)) continue;
+      if(!IsTrackAcceptedKinematics(mcGenParticle, kTRUE)) continue;
 
       if(IsChargedPrimary(iParticle)){
 	
@@ -691,16 +691,18 @@ void AlidNdPtUnifiedAnalysisTask::UserExec(Option_t *){ // Main loop (called for
 
       /// \li Acceptance cuts for generated particles
       // lower pt cut is disabled for mpt analysis! (Nch should be counted down to pt=0)!
-      if(!IsTrackAcceptedKinematics(mcGenParticle, kFALSE)) continue;
+      if(!IsTrackAcceptedKinematics(mcGenParticle, kTRUE)) continue;
 
       if(IsChargedPrimary(iParticle)){
 
         Double_t mcGenPrimTrackValue[4] = {mcGenParticle->Pt(), mcGenParticle->Eta(), zVertEvent, multEvent};
         fHistMCGenPrimTrack->Fill(mcGenPrimTrackValue);
 
-	// multPt hist for MC closure test and generator comparison
-	Double_t mcMultPt[2] = {multGenPart, mcGenParticle->Pt()};
-	fHistMCMultPt->Fill(mcMultPt);
+	// multPt hist for MC closure test
+	if(multEvent > 0.1){
+	  Double_t mcMultPt[2] = {multGenPart, mcGenParticle->Pt()};
+	  fHistMCMultPt->Fill(mcMultPt);
+	}
 
       }
       if(IsChargedPrimaryOrLambda(iParticle))

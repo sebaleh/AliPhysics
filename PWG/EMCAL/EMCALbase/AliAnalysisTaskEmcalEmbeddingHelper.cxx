@@ -33,6 +33,7 @@
 #include <TKey.h>
 #include <TProfile.h>
 #include <TH1F.h>
+#include <TRandom3.h>
 
 #include <AliLog.h>
 #include <AliAnalysisManager.h>
@@ -93,9 +94,9 @@ AliAnalysisTaskEmcalEmbeddingHelper::AliAnalysisTaskEmcalEmbeddingHelper() :
   fExternalHeader(nullptr),
   fPythiaHeader(nullptr),
   fPythiaTrials(0),
-  fPythiaTrialsAvg(0),
+  fPythiaTrialsFromFile(0),
   fPythiaCrossSection(0.),
-  fPythiaCrossSectionAvg(0.),
+  fPythiaCrossSectionFromFile(0.),
   fPythiaPtHard(0.),
   fPythiaCrossSectionFilenames(),
   fHistManager(),
@@ -149,9 +150,9 @@ AliAnalysisTaskEmcalEmbeddingHelper::AliAnalysisTaskEmcalEmbeddingHelper(const c
   fExternalHeader(nullptr),
   fPythiaHeader(nullptr),
   fPythiaTrials(0),
-  fPythiaTrialsAvg(0),
+  fPythiaTrialsFromFile(0),
   fPythiaCrossSection(0.),
-  fPythiaCrossSectionAvg(0.),
+  fPythiaCrossSectionFromFile(0.),
   fPythiaPtHard(0.),
   fPythiaCrossSectionFilenames(),
   fHistManager(name),
@@ -382,8 +383,9 @@ void AliAnalysisTaskEmcalEmbeddingHelper::DetermineFirstFileToEmbed()
   // This determines which file is added first to the TChain, thus determining the order of processing
   // Random file access. Only do this if the user has no set the filename index and request random file access
   if (fFilenameIndex == -1 && fRandomFileAccess) {
-    // - 1 ensures that we it doesn't overflow
-    fFilenameIndex = TMath::Nint(gRandom->Rndm()*fFilenames.size()) - 1;
+    // Floor ensures that we it doesn't overflow
+    TRandom3 rand(0);
+    fFilenameIndex = TMath::FloorNint(rand.Rndm()*fFilenames.size());
     // +1 to account for the fact that the filenames vector is 0 indexed.
     AliInfo(TString::Format("Starting with random file number %i!", fFilenameIndex+1));
   }
@@ -512,12 +514,12 @@ void AliAnalysisTaskEmcalEmbeddingHelper::SetEmbeddedEventProperties()
     // It is identically zero if the available is not available
     if (fPythiaCrossSection == 0.) {
       AliDebugStream(4) << "Taking the pythia cross section avg from the xsec file.\n";
-      fPythiaCrossSection = fPythiaCrossSectionAvg;
+      fPythiaCrossSection = fPythiaCrossSectionFromFile;
     }
     // It is identically zero if the available is not available
     if (fPythiaTrials == 0.) {
       AliDebugStream(4) << "Taking the pythia trials avg from the xsec file.\n";
-      fPythiaTrials = fPythiaTrialsAvg;
+      fPythiaTrials = fPythiaTrialsFromFile;
     }
     // Pt hard is inherently event-by-event and cannot by taken as a avg quantity.
 
@@ -566,11 +568,17 @@ Bool_t AliAnalysisTaskEmcalEmbeddingHelper::CheckIsEmbeddedEventSelected()
   // Physics selection
   if (fTriggerMask != AliVEvent::kAny) {
     UInt_t res = 0;
-    const AliESDEvent *eev = dynamic_cast<const AliESDEvent*>(InputEvent());
+    const AliESDEvent *eev = dynamic_cast<const AliESDEvent*>(fExternalEvent);
     if (eev) {
-      res = (dynamic_cast<AliInputEventHandler*>(AliAnalysisManager::GetAnalysisManager()->GetInputEventHandler()))->IsEventSelected();
+      AliFatal("Event selection is not implemented for embedding ESDs.");
+      // Unfortunately, the normal method of retrieving the trigger mask (commented out below) doesn't work for the embedded event since we don't
+      // create an input handler and I am not an expert on getting a trigger mask. Further, embedding ESDs is likely to be inefficient, so it is
+      // probably best to avoid it if possible.
+      //
+      // Suggestions are welcome here!
+      //res = (dynamic_cast<AliInputEventHandler*>(AliAnalysisManager::GetAnalysisManager()->GetInputEventHandler()))->IsEventSelected();
     } else {
-      const AliAODEvent *aev = dynamic_cast<const AliAODEvent*>(InputEvent());
+      const AliAODEvent *aev = dynamic_cast<const AliAODEvent*>(fExternalEvent);
       if (aev) {
         res = (dynamic_cast<AliVAODHeader*>(aev->GetHeader()))->GetOfflineTrigger();
       }
@@ -590,7 +598,7 @@ Bool_t AliAnalysisTaskEmcalEmbeddingHelper::CheckIsEmbeddedEventSelected()
   Double_t externalVertex[3]={0};
   Double_t inputVertex[3]={0};
   const AliVVertex *externalVert = fExternalEvent->GetPrimaryVertex();
-  const AliVVertex *inputVert = InputEvent()->GetPrimaryVertex();
+  const AliVVertex *inputVert = AliAnalysisTaskSE::InputEvent()->GetPrimaryVertex();
   if (externalVert && inputVert) {
     externalVert->GetXYZ(externalVertex);
     inputVert->GetXYZ(inputVertex);
@@ -739,8 +747,13 @@ void AliAnalysisTaskEmcalEmbeddingHelper::UserCreateOutputObjects()
 
   // Number of files embedded
   histName = "fHistNumberOfFilesEmbedded";
-  histTitle = "Number of files which contributed events to be embeeded";
+  histTitle = "Number of files which contributed events to be embedded";
   fHistManager.CreateTH1(histName, histTitle, 1, 0, 2);
+
+  // File number which was embedded
+  histName = "fHistAbsoluteFileNumber";
+  histTitle = "Number of times each absolute file number was embedded";
+  fHistManager.CreateTH1(histName, histTitle, fMaxNumberOfFiles, 0, fMaxNumberOfFiles);
 
   // Add all histograms to output list
   TIter next(fHistManager.GetListOfHistograms());
@@ -871,7 +884,7 @@ Bool_t AliAnalysisTaskEmcalEmbeddingHelper::SetupInputFiles()
 }
 
 /**
- * Check if yhe file pythia base filename can be found in the folder or archive corresponding where
+ * Check if the file pythia base filename can be found in the folder or archive corresponding where
  * the external event input file is found.
  *
  * @param baseFileName Path to external event input file with "#*.root" already remove (it if existed).
@@ -979,7 +992,8 @@ void AliAnalysisTaskEmcalEmbeddingHelper::InitTree()
   // Jump ahead at random if desired
   // Determines the offset into the tree
   if (fRandomEventNumberAccess) {
-    fOffset = TMath::Nint(gRandom->Rndm()*(fUpperEntry-fLowerEntry))-1;
+    TRandom3 rand(0);
+    fOffset = TMath::Nint(rand.Rndm()*(fUpperEntry-fLowerEntry))-1;
   }
   else {
     fOffset = 0;
@@ -996,16 +1010,23 @@ void AliAnalysisTaskEmcalEmbeddingHelper::InitTree()
 
   // Add to the count the number of files which were embedded
   fHistManager.FillTH1("fHistNumberOfFilesEmbedded", 1);
+  fHistManager.FillTH1("fHistAbsoluteFileNumber", (fFileNumber + fFilenameIndex) % fMaxNumberOfFiles);
 
   // Check for pythia cross section and extract if possible
   // fFileNumber corresponds to the next file
   // If there are pythia filenames, the number of match the file number of the tree.
   // If we previously gave up on extracting then there should be no entires
   if (fPythiaCrossSectionFilenames.size() > 0) {
-    bool success = PythiaInfoFromCrossSectionFile(fPythiaCrossSectionFilenames.at(fFileNumber));
+    // Need to check that fFileNumber is smaller than the size of the vector because we don't check if
+    if (fFileNumber < fPythiaCrossSectionFilenames.size()) {
+      bool success = PythiaInfoFromCrossSectionFile(fPythiaCrossSectionFilenames.at(fFileNumber));
 
-    if (!success) {
-      AliDebugStream(3) << "Failed to retrieve cross section from xsec file. Will still attempt to get the information from the header.\n";
+      if (!success) {
+        AliDebugStream(3) << "Failed to retrieve cross section from xsec file. Will still attempt to get the information from the header.\n";
+      }
+    }
+    else {
+      AliErrorStream() << "Attempted to read past the end of the pythia cross section filenames vector. File number: " << fFileNumber << ", vector size: " << fPythiaCrossSectionFilenames.size() << ".\nThis should only occur if we have run out of files to embed!\n";
     }
   }
 
@@ -1024,7 +1045,7 @@ void AliAnalysisTaskEmcalEmbeddingHelper::InitTree()
 /**
  * Extract pythia information from a cross section file. Modified from AliAnalysisTaskEmcal::PythiaInfoFromFile().
  *
- * @param filename Path to the pythia cross section file.
+ * @param pythiaFileName Path to the pythia cross section file.
  *
  * @return True if the information has been successfully extracted.
  */
@@ -1078,8 +1099,9 @@ bool AliAnalysisTaskEmcalEmbeddingHelper::PythiaInfoFromCrossSectionFile(std::st
     // We do not want to just use the overall value because some of the events may be rejected by various
     // event selections, so we only want that ones that were actually use. The easiest way to do so is by
     // filling it for each event.
-    fPythiaTrialsAvg = trials/nEvents;
-    fPythiaCrossSectionAvg = crossSection/nEvents;
+    fPythiaTrialsFromFile = trials/nEvents;
+    // Do __NOT__ divide by nEvents here! The value is already from a TProfile and therefore is already the mean!
+    fPythiaCrossSectionFromFile = crossSection;
 
     return true;
   }

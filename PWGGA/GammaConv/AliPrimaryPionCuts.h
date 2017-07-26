@@ -11,7 +11,7 @@
 #include "AliESDtrack.h"
 #include "AliVTrack.h"
 #include "AliAODTrack.h"
-#include "AliStack.h"
+#include "AliMCEvent.h"
 #include "AliAnalysisCuts.h"
 #include "AliESDtrackCuts.h"
 #include "TH1F.h"
@@ -79,7 +79,7 @@ class AliPrimaryPionCuts : public AliAnalysisCuts {
 	TString GetCutNumber();
 
 		// Cut Selection
-	Bool_t PionIsSelectedMC(Int_t labelParticle,AliStack *fMCStack);
+    Bool_t PionIsSelectedMC(Int_t labelParticle,AliMCEvent *mcEvent);
 	Bool_t TrackIsSelected(AliESDtrack* lTrack);
 	Bool_t PionIsSelected(AliESDtrack* lTrack);
 	static AliPrimaryPionCuts * GetStandardCuts2010PbPb();
@@ -130,6 +130,8 @@ class AliPrimaryPionCuts : public AliAnalysisCuts {
 	Bool_t   fDoEtaCut;
 	Double_t fPtCut;
 	Double_t fMinClsTPC; // minimum clusters in the TPC
+    Double_t fChi2PerClsTPC; // maximum Chi2 per cluster in the TPC
+    Bool_t   fRequireTPCRefit; // require a refit in the TPC
 	Double_t fMinClsTPCToF; // minimum clusters to findable clusters
 	Bool_t   fDodEdxSigmaITSCut; // flag to use the dEdxCut ITS based on sigmas
 	Bool_t   fDodEdxSigmaTPCCut; // flag to use the dEdxCut TPC based on sigmas
@@ -146,11 +148,13 @@ class AliPrimaryPionCuts : public AliAnalysisCuts {
 	Bool_t   fDoMassCut;
 	Double_t fMassCut;	
 	Bool_t   fDoWeights;
+    Double_t fMaxDCAToVertexZ;
 	
 
 
 	// Histograms
 	TObjString *fCutString; // cut number used for analysis
+  TString fCutStringRead;
 	TH1F *fHistCutIndex; // bookkeeping for cuts
 	TH1F *fHistdEdxCuts;  // bookkeeping for dEdx cuts
 	TH2F *fHistITSdEdxbefore; // ITS dEdx before cuts
@@ -176,7 +180,7 @@ class AliPrimaryPionCuts : public AliAnalysisCuts {
 	AliPrimaryPionCuts& operator=(const AliPrimaryPionCuts&); // not implemented
 
 
-	ClassDef(AliPrimaryPionCuts,3)
+    ClassDef(AliPrimaryPionCuts,5)
 };
 
 #endif

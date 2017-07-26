@@ -112,7 +112,10 @@ class AliAnalysisTaskEMCALPhotonIsolation: public AliAnalysisTaskEmcal {
   void			   SetDecayBinning(vector<Double_t> binedges)			   { fBinsDecay = binedges; }
   void                     SetMCtruth(Bool_t mctruth)                                      { fMCtruth = mctruth; }
   void                     SetPeriod(const char *period)                                   { fPeriod = period; }
-  
+  void                     SetRejectPileUpEvent(Bool_t rpue)                               { fRejectPileUpEvent = rpue; }
+  void                     SetNcontributorsToPileUp (Int_t nCtoPU)                         { fNContrToPileUp = nCtoPU; }
+  void                     SetLightenOutput (Bool_t light)                                 { fLightOutput = light; }
+  void                     SetFiducialCut(Float_t fiducial)                                { fFiducialCut = fiducial; }
  protected:
   
   void                     FillQAHistograms(AliVCluster *coi, TLorentzVector vecCOI);                           // Fill some QA histograms
@@ -169,6 +172,9 @@ class AliAnalysisTaskEMCALPhotonIsolation: public AliAnalysisTaskEmcal {
   Float_t                  fSSsmearwidth;
   Float_t                  fSSsmear_mean;
   Int_t                    fWhich;
+  Bool_t                   fRejectPileUpEvent;
+  Int_t                    fNContrToPileUp;
+  Bool_t                   fLightOutput;
   
   // TList       *fOutputList;                    //!<! Output list
   // TGeoHMatrix *fGeomMatrix[12];                //!<! Geometry misalignment matrices for EMCal
@@ -199,11 +205,12 @@ class AliAnalysisTaskEMCALPhotonIsolation: public AliAnalysisTaskEmcal {
   Bool_t      fTMClusterInConeRejected;        // Enable/disable TM cluster rejection in isolation cone
   Bool_t      fRejectionEventWithoutTracks;    // Enable/disable rejction of events without tracks
   Bool_t      fAnalysispPb;                    // Enable/disable the p-Pb analysis facilities
-  Int_t       fTriggerLevel1;                  // Choice of the L1 gamma trigger to "simulate" for the MC (1 = EMCEGA1, 2 = EMCEGA2)
+  Int_t       fTriggerLevel1;                  // Choice of the L1 gamma trigger to "simulate" for the MC (0 = no simulation ("MB" case), 1 = EMCEGA1, 2 = EMCEGA2)
   Int_t       fTest1;
   Int_t       fTest2;
   Bool_t      fMCtruth;                        // Enable/disable MC truth analysis
   TString     fPeriod;                         // String containing the LHC period
+  Float_t     fFiducialCut;                    // Variable fiducial cut from the border of the EMCal/TPC acceptance
   
   // Initialization for TTree variables
   Double_t    fEClustersT;                     // E for all clusters
@@ -313,6 +320,11 @@ class AliAnalysisTaskEMCALPhotonIsolation: public AliAnalysisTaskEmcal {
   TH3F        *fEtVSM02VSEisoclust;            //!<!
   TH2F        *fPhiTracksVSclustPt;            //!<!
   TH2F        *fEtaTracksVSclustPt;            //!<!
+  TH2F        *fTrackResolutionPtMC;           //!<!
+  TH1D        *fVzBeforecut;                   //!<!
+  TH3F        *fEtaPhiClusVsM02;               //!<! Cluster eta vs. phi vs. sigma_long squared (energy integrated from 0 to 100 GeV)
+  TH3F        *fClusEtVsEtaPhiMatched;         //!<! Track-matched cluster eta vs. phi vs. E_T
+  TH3F        *fClusEtVsEtaPhiUnmatched;       //!<! Not track-matched cluster eta vs. phi vs. E_T
   
   THnSparse   *fOutputTHnS;                    //!<! 1st Method 4 Output
   THnSparse   *fOutMCTruth;                    //!<! 1st Method 4 MC truth Output // Isolation on pTMax
@@ -339,7 +351,7 @@ class AliAnalysisTaskEMCALPhotonIsolation: public AliAnalysisTaskEmcal {
   AliAnalysisTaskEMCALPhotonIsolation&operator=(const AliAnalysisTaskEMCALPhotonIsolation&); // Not implemented
   
   /// \cond CLASSIMP
-  ClassDef(AliAnalysisTaskEMCALPhotonIsolation, 14); // EMCal neutrals base analysis task
+  ClassDef(AliAnalysisTaskEMCALPhotonIsolation, 18); // EMCal neutrals base analysis task
   /// \endcond
 };
 #endif

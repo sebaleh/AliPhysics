@@ -186,4 +186,15 @@
 #pragma link C++ class  AliAnalysisTrackingUncertaintiesAOT+;
 #pragma link C++ class  AliAnalysisTrackingUncertainties+;
 #pragma link C++ class  AliAnalysisTaskEventCutsValidation+;
+
+// vdM task
+#pragma link C++ class  AliAnalysisTaskVdM::TreeData+;
+#pragma link C++ class  AliAnalysisTaskVdM::EventInfo+;
+#pragma link C++ class  AliAnalysisTaskVdM::ADV0+;
+#pragma link C++ class  AliAnalysisTaskVdM+;
+#pragma link C++ class  AliXMLEngine::NodeIterator+;
+#pragma link C++ class  AliXMLEngine::Node+;
+#pragma link C++ class  AliXMLEngine::Attr+;
+#pragma link C++ class  AliXMLEngine+;
+
 #endif
