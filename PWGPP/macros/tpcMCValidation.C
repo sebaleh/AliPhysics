@@ -58,27 +58,38 @@ Double_t cRange2[4]={0.13,0.01,0.5,0.3};
 Double_t cRange5[4]={0.13,0.01,0.8,0.3};
 TMultiGraph *graph=0,*lines=0;
 
-
-trendingDraw->fWorkingCanvas->Clear();  
-TLegend *legend2 = new TLegend(cRange2[0],cRange2[1],cRange2[2],cRange2[3],"Number of clusters: MC/Anchor"); legend2->SetBorderSize(0);
-legend2->SetNColumns(2);
-graph = TStatToolkit::MakeMultGraph(treeMC,"","meanTPCncl;TPC.Anchor.meanTPCncl:run","1","25;21","2;4",1,0.75,5,legend2);
-TStatToolkit::DrawMultiGraph(graph,"alp");
-legend2->Draw();
-trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-trendingDraw->fWorkingCanvas->SaveAs("meanTPCNclMCtoAnchor.png"); 
-//trendingDraw->fWorkingCanvas->Draw();
-
-
-trendingDraw->fWorkingCanvas->Clear(); 
-TLegend *legend = new TLegend(cRange5[0],cRange5[1],cRange5[2],cRange5[3],"Matching efficiency: MC/Anchor"); legend->SetBorderSize(0);
-legend->SetNColumns(5);
-graph = TStatToolkit::MakeMultGraph(treeMC,"","QA.TPC.tpcItsMatchA;QA.TPC.tpcItsMatchC;QA.ITS.EffTOTPt02;QA.ITS.EffTOTPt1;QA.ITS.EffTOTPt10;TPC.Anchor.tpcItsMatchA;TPC.Anchor.tpcItsMatchC;ITS.Anchor.EffTOTPt02;ITS.Anchor.EffTOTPt1;ITS.Anchor.EffTOTPt10:run","1","21;24;25;27;28;21;24;25;27;28","2;2;2;2;2;4;4;4;4;4",1,1.5,5,legend);
-TStatToolkit::DrawMultiGraph(graph,"alp");
-legend->Draw(); 
-trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe.png");    
-//trendingDraw->fWorkingCanvas->Draw(); 
+MakeReport();
+//trendingDraw->fWorkingCanvas->Clear();  
+//TLegend *legend2 = new TLegend(cRange2[0],cRange2[1],cRange2[2],cRange2[3],"Number of clusters: MC/Anchor"); legend2->SetBorderSize(0);
+//legend2->SetNColumns(2);
+//graph = TStatToolkit::MakeMultGraph(treeMC,"","meanTPCncl;TPC.Anchor.meanTPCncl:run","1","25;21","2;4",1,0.75,5,legend2);
+//TStatToolkit::DrawMultiGraph(graph,"alp");
+//legend2->Draw();
+//trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
+//trendingDraw->fWorkingCanvas->SaveAs("meanTPCNclMCtoAnchor.png"); 
+////trendingDraw->fWorkingCanvas->Draw();
+//
+//{trendingDraw->fWorkingCanvas->Clear(); 
+//TLegend *legend = new TLegend(cRange5[0],cRange5[1],cRange5[2],cRange5[3],"Matching efficiency: MC/Anchor"); legend->SetBorderSize(0);
+//legend->SetNColumns(5);
+//graph = TStatToolkit::MakeMultGraph(treeMC,"","QA.TPC.tpcItsMatchA;QA.TPC.tpcItsMatchC;QA.ITS.EffTOTPt02;QA.ITS.EffTOTPt1;QA.ITS.EffTOTPt10;TPC.Anchor.tpcItsMatchA;TPC.Anchor.tpcItsMatchC;ITS.Anchor.EffTOTPt02;ITS.Anchor.EffTOTPt1;ITS.Anchor.EffTOTPt10:run","1","21;24;25;27;28;21;24;25;27;28","2;2;2;2;2;4;4;4;4;4",1,1.5,5,legend);
+//TStatToolkit::DrawMultiGraph(graph,"alp");
+//legend->Draw(); 
+//trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
+//trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe.png");    
+////trendingDraw->fWorkingCanvas->Draw(); 
+//}
+//
+//{
+//trendingDraw->fWorkingCanvas->Clear(); 
+//    TLegend *legend = new TLegend(cRange5[0],cRange5[1],cRange5[2],cRange5[3],"Matching efficiency:pass1_lowIR/pass3_lowIR_pidfix"); legend->SetBorderSize(0);
+//    legend->SetNColumns(5);
+//    graph = TStatToolkit::MakeMultGraph(treeMC,"","QA.TPC.tpcItsMatchA;QA.TPC.tpcItsMatchC;QA.ITS.EffoneSPDPt02;QA.ITS.EffoneSPDPt1;QA.ITS.EffoneSPDPt10;TPC.Anchor.tpcItsMatchA;TPC.Anchor.tpcItsMatchC;ITS.Anchor.EffoneSPDPt02;ITS.Anchor.EffoneSPDPt1;ITS.Anchor.EffoneSPDPt10:run","1","21;24;25;27;28;21;24;25;27;28","2;2;2;2;2;4;4;4;4;4",1,1.5,5,legend);
+//    TStatToolkit::DrawMultiGraph(graph,"alp");    
+//    legend->Draw();
+//    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
+//    trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe1.png"); 
+//}
 }
 
 
@@ -167,8 +178,8 @@ void InitTPCMCValidation(TString mcPeriod,  TString mcPass, TString anchorPeriod
   statusString[1] = sStatusbarNames;
   statusString[2] = sCriteria;
   //
-  trendingDraw->AddUserDescription(new TNamed("period",mcPeriod.Data()));
-  trendingDraw->AddUserDescription(new TNamed("pass",mcPass.Data()));
+  trendingDraw->AddUserDescription(new TNamed("MC period",mcPeriod.Data()));
+  trendingDraw->AddUserDescription(new TNamed("MC pass",mcPass.Data()));
   trendingDraw->AddUserDescription(new TNamed("Anchor period",anchorPeriod.Data()));
   trendingDraw->AddUserDescription(new TNamed("Anchor pass",anchorPass.Data()));
   trendingDraw->SetTree(treeMC);
@@ -178,7 +189,7 @@ void InitTPCMCValidation(TString mcPeriod,  TString mcPass, TString anchorPeriod
 
 void MakeReport(){
   //
-  // 3.) make an report
+  // 3.) make a report
   //
   Double_t cRange[4]={0.13,0.01,0.5,0.35};
   Double_t cRange2[4]={0.13,0.01,0.5,0.3};
@@ -194,57 +205,57 @@ void MakeReport(){
     trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
     trendingDraw->fWorkingCanvas->SaveAs("meanTPCNclMCtoAnchor.png");
   }
-  
-  { //
-    trendingDraw->fWorkingCanvas->Clear();  
-    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"Number of clusters MC/Anchor"); legend->SetBorderSize(0);
-    graph = TStatToolkit::MakeMultGraph(treeMC,"","meanTPCncl/TPC.Anchor.meanTPCncl;meanTPCnclF/TPC.Anchor.meanTPCnclF :run","1","25;21","2;4",1,0.75,6,legend);
-    TStatToolkit::DrawMultiGraph(graph,"alp");
-    legend->Draw();    
-    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-    trendingDraw->fWorkingCanvas->SaveAs("meanTPCNclRatioMCtoAnchor.png");    
-  }
-  
-  { // DCA resolution at high pt
-    trendingDraw->fWorkingCanvas->Clear();  
-    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"DCA Resolution at q/pt=0:MC/Anchor"); legend->SetBorderSize(0);
-    graph = TStatToolkit::MakeMultGraph(treeMC,"","dcarAP0;dcarCP0;TPC.Anchor.dcarAP0;TPC.Anchor.dcarCP0:run","1","25;21;25;21","2;2;4;4",1,0.75,6,legend);
-    TStatToolkit::DrawMultiGraph(graph,"alp");
-    legend->Draw();
-    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-    trendingDraw->fWorkingCanvas->SaveAs("rmsDCAAt1pt0MCtoAnchor.png");    
-  }
-
-  { // DCA resolution MS part
-    trendingDraw->fWorkingCanvas->Clear();  
-    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"DCA Resolution mult due MS:MC/Anchor"); legend->SetBorderSize(0);
-    graph = TStatToolkit::MakeMultGraph(treeMC,"","dcarAP1;dcarCP1;TPC.Anchor.dcarAP1;TPC.Anchor.dcarCP1:run","1","25;21;25;21","2;2;4;4",1,0.75,6,legend);
-    TStatToolkit::DrawMultiGraph(graph,"alp");
-    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-    trendingDraw->fWorkingCanvas->SaveAs("rmsDCAMultSpartMCtoAnchor.png");    
-  }
-
-  { // MIP resolution  and separation
-    trendingDraw->fWorkingCanvas->Clear(); 
-    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"DCA Resolution mult due MS:MC/Anchor"); legend->SetBorderSize(0);
-    graph = TStatToolkit::MakeMultGraph(treeMC,"","meanMIPele/meanMIP;TPC.Anchor.meanMIPele/TPC.Anchor.meanMIP:run","1","25;21;25;21","2;4;4;4",1,0.75,6,legend);
-    lines = TStatToolkit::MakeMultGraph(treeMC,"","meanMIPele_RobustMean/meanMIP_RobustMean;TPC.Anchor.meanMIPele_RobustMean/TPC.Anchor.meanMIP_RobustMean:run","1","25;21;25;21","2;4;4;4",1,0.75,6,0);
-    TStatToolkit::DrawMultiGraph(graph,"alp");
-    TStatToolkit::DrawMultiGraph(lines,"l");
-    legend->Draw();
-    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-    trendingDraw->fWorkingCanvas->SaveAs("mipToEleSeparation.png");    
-  }
-
-  { // matching efficiency
-    trendingDraw->fWorkingCanvas->Clear(); 
-    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"Matching efficiency:MC/Anchor"); legend->SetBorderSize(0);
-    graph = TStatToolkit::MakeMultGraph(treeMC,"","tpcItsMatchHighPtA;TPC.Anchor.tpcItsMatchHighPtA;tpcItsMatchHighPtC;TPC.Anchor.tpcItsMatchHighPtC:run","1","25;21;25;21","2;2;4;4",1,0.75,6,legend);
-    TStatToolkit::DrawMultiGraph(graph,"alp");
-    legend->Draw();
-    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-    trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe.png");    
-  }
+//  
+//  { //
+//    trendingDraw->fWorkingCanvas->Clear();  
+//    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"Number of clusters MC/Anchor"); legend->SetBorderSize(0);
+//    graph = TStatToolkit::MakeMultGraph(treeMC,"","meanTPCncl/TPC.Anchor.meanTPCncl;meanTPCnclF/TPC.Anchor.meanTPCnclF :run","1","25;21","2;4",1,0.75,6,legend);
+//    TStatToolkit::DrawMultiGraph(graph,"alp");
+//    legend->Draw();    
+//    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
+//    trendingDraw->fWorkingCanvas->SaveAs("meanTPCNclRatioMCtoAnchor.png");    
+//  }
+//  
+//  { // DCA resolution at high pt
+//    trendingDraw->fWorkingCanvas->Clear();  
+//    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"DCA Resolution at q/pt=0:MC/Anchor"); legend->SetBorderSize(0);
+//    graph = TStatToolkit::MakeMultGraph(treeMC,"","dcarAP0;dcarCP0;TPC.Anchor.dcarAP0;TPC.Anchor.dcarCP0:run","1","25;21;25;21","2;2;4;4",1,0.75,6,legend);
+//    TStatToolkit::DrawMultiGraph(graph,"alp");
+//    legend->Draw();
+//    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
+//    trendingDraw->fWorkingCanvas->SaveAs("rmsDCAAt1pt0MCtoAnchor.png");    
+//  }
+//
+//  { // DCA resolution MS part
+//    trendingDraw->fWorkingCanvas->Clear();  
+//    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"DCA Resolution mult due MS:MC/Anchor"); legend->SetBorderSize(0);
+//    graph = TStatToolkit::MakeMultGraph(treeMC,"","dcarAP1;dcarCP1;TPC.Anchor.dcarAP1;TPC.Anchor.dcarCP1:run","1","25;21;25;21","2;2;4;4",1,0.75,6,legend);
+//    TStatToolkit::DrawMultiGraph(graph,"alp");
+//    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
+//    trendingDraw->fWorkingCanvas->SaveAs("rmsDCAMultSpartMCtoAnchor.png");    
+//  }
+//
+//  { // MIP resolution  and separation
+//    trendingDraw->fWorkingCanvas->Clear(); 
+//    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"DCA Resolution mult due MS:MC/Anchor"); legend->SetBorderSize(0);
+//    graph = TStatToolkit::MakeMultGraph(treeMC,"","meanMIPele/meanMIP;TPC.Anchor.meanMIPele/TPC.Anchor.meanMIP:run","1","25;21;25;21","2;4;4;4",1,0.75,6,legend);
+//    lines = TStatToolkit::MakeMultGraph(treeMC,"","meanMIPele_RobustMean/meanMIP_RobustMean;TPC.Anchor.meanMIPele_RobustMean/TPC.Anchor.meanMIP_RobustMean:run","1","25;21;25;21","2;4;4;4",1,0.75,6,0);
+//    TStatToolkit::DrawMultiGraph(graph,"alp");
+//    TStatToolkit::DrawMultiGraph(lines,"l");
+//    legend->Draw();
+//    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
+//    trendingDraw->fWorkingCanvas->SaveAs("mipToEleSeparation.png");    
+//  }
+//
+//  { // matching efficiency
+//    trendingDraw->fWorkingCanvas->Clear(); 
+//    TLegend *legend = new TLegend(cRange[0],cRange[1],cRange[2],cRange[3],"Matching efficiency:MC/Anchor"); legend->SetBorderSize(0);
+//    graph = TStatToolkit::MakeMultGraph(treeMC,"","tpcItsMatchHighPtA;TPC.Anchor.tpcItsMatchHighPtA;tpcItsMatchHighPtC;TPC.Anchor.tpcItsMatchHighPtC:run","1","25;21;25;21","2;2;4;4",1,0.75,6,legend);
+//    TStatToolkit::DrawMultiGraph(graph,"alp");
+//    legend->Draw();
+//    trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
+//    trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe3.png");    
+//  }
 
   { // matching efficiency
     trendingDraw->fWorkingCanvas->Clear(); 
@@ -265,8 +276,10 @@ void MakeReport(){
     TStatToolkit::DrawMultiGraph(graph,"alp");    
     legend->Draw();
     trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-    trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe.png");    
+    trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe_1.png");    
   }
+  
+  
 
   { // matching efficiency
     trendingDraw->fWorkingCanvas->Clear(); 
@@ -276,7 +289,7 @@ void MakeReport(){
     TStatToolkit::DrawMultiGraph(graph,"alp");
     legend->Draw();
      trendingDraw->AppendStatusPad(0.3, 0.4, 0.05);
-     trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe.png");    
+     trendingDraw->fWorkingCanvas->SaveAs("matchingTPC-ITSEffe_2.png");    
   }
 
 
