@@ -21,23 +21,37 @@
 #include "AliExternalInfo.h"
 #include "AliTreeTrending.h"
 #include "TStatToolkit.h"
+#include "TPRegexp.h" 
 
 AliExternalInfo   *pinfo=0;
 AliTreeTrending   *trendingDraw=0;  
 TTree * treeMC;
 
 void makeTPCMCAlarms(TTree * treeMC, Bool_t doCheck,Int_t verbose);
-void tpcMCValidationStandard(TString mcPeriod,  TString mcPass, TString anchorPeriod,  TString anchorPass, Int_t verbose,Int_t doCheck);
+void tpcMCValidationStandard(TString mcPeriod,Int_t verbose,Int_t doCheck);
 void InitTPCMCValidation(TString mcPeriod,  TString mcPass, TString anchorPeriod,  TString anchorPass, Int_t verbose,Int_t doCheck);
 void MakeReport();
 
 
-void tpcMCValidation(const char* MCper ="LHC15k1a1",const char* anchper="LHC15o",const char* anchpass="pass3_lowIR_pidfix"){
+void tpcMCValidation(const char* MCper ="LHC15k1a1"){
 
 //gROOT->LoadMacro("tpcMCValidationStandardQA.C+");
 cout<<"INITIALIZING TPC MC Validation"<<endl;
-InitTPCMCValidation(MCper,"passMC",anchper, anchpass,0,0);
-//InitTPCMCValidation("LHC15k1a1","passMC","LHC15o", "pass3_lowIR_pidfix",0,0);
+AliExternalInfo i;
+cout<<MCper<<endl;
+TString AnchProdNamenPass = i.GetMCPassGuess(TString::Format("%s",MCper));
+//TString AnchProdName;
+cout<<"Anchor Production Name and Pass: "<<AnchProdNamenPass<<endl;
+TObjArray *subStrL;
+subStrL = TPRegexp("^([^ ]+)").MatchS(AnchProdNamenPass);
+TString AnchProdName = ((TObjString*)subStrL->At(0))->GetString();
+
+subStrL = TPRegexp("([^ ])+$").MatchS(AnchProdNamenPass);
+TString AnchPassName = ((TObjString*)subStrL->At(0))->GetString();
+
+
+InitTPCMCValidation(MCper,"passMC",AnchProdName, AnchPassName,0,0);
+
 
 Double_t cRange[4]={0.13,0.01,0.5,0.35};
 Double_t cRange2[4]={0.13,0.01,0.5,0.3};
