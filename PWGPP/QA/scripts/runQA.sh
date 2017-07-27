@@ -175,7 +175,7 @@ updateQA()
       echo "${detector} not included in includeDetectors, skipping..."
       continue
     fi
-
+    echo "cd-ing to $tmpDetectorRunDir"
     logSummary=${logDirectory}/summary-${detector}-${dateString}.log
     hostInfo >> ${logSummary}
     outputDir=$(substituteDetectorName ${detector} ${outputDirectory})
@@ -187,6 +187,7 @@ updateQA()
     #at this point we can store the detector name and the logSummary location
     #in arrLogSummary
     arrLogSummary[${detector}]=${logSummary}
+    
 
     cd ${tmpDetectorRunDir}
 
