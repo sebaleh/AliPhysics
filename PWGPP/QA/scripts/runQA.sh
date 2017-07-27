@@ -4,11 +4,11 @@
 # origin: Mikolaj Krzewicki, mkrzewic@cern.ch
 #
 
-if [[ $(whoami) != "service" ]];then
-    echo "SAFETY INTERRUPT: you are not user named: service -> EXIT"
-    echo "you are:" $(whoami)
-    exit 1
-fi
+#if [[ $(whoami) != "service" ]];then
+#    echo "SAFETY INTERRUPT: you are not user named: service -> EXIT"
+#    echo "you are:" $(whoami)
+#    exit 1
+#fi
 
 if [ ${BASH_VERSINFO} -lt 4 ]; then
   echo "bash version >= 4 needed, you have ${BASH_VERSION}, exiting..."
