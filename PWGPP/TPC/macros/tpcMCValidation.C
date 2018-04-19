@@ -82,7 +82,7 @@ void tpcMCValidation(const char *mcPeriod, const char *sOutputDir) {
   TString anchorProdNamePass = i.GetMCPassGuess(TString::Format("%s", mcPeriod));
   cout << "Anchor Production Name and Pass: " << anchorProdNamePass << endl;
   if(anchorProdNamePass.Contains("not found")) {
-      ::Error("tpcMCValidation", "MC not found in guess -> skip plotting!")
+      ::Error("tpcMCValidation", "MC not found in guess -> skip plotting!");
       return 0;
   }
   TObjArray *subStrL;
