@@ -81,6 +81,10 @@ void tpcMCValidation(const char *mcPeriod, const char *sOutputDir) {
   cout << mcPeriod << endl;
   TString anchorProdNamePass = i.GetMCPassGuess(TString::Format("%s", mcPeriod));
   cout << "Anchor Production Name and Pass: " << anchorProdNamePass << endl;
+  if(anchorProdNamePass.Contains("not found")) {
+      ::Error("tpcMCValidation", "MC -> skip plotting!")
+      return;
+  }
   TObjArray *subStrL;
   subStrL = TPRegexp("^([^ ]+)").MatchS(anchorProdNamePass);
   TString anchorProdName = ((TObjString *) subStrL->At(0))->GetString();
@@ -88,7 +92,8 @@ void tpcMCValidation(const char *mcPeriod, const char *sOutputDir) {
   TString anchorPassName = ((TObjString *) subStrL->At(0))->GetString();
   if (InitTPCMCValidation(mcPeriod, "passMC", anchorProdName, anchorPassName, 0, 0)) {
     MakeReport();
-  } else ::Error("tpcMCValidation", "InitTPCMCValidation returned with error -> skip plotting!");
+  }
+  else ::Error("tpcMCValidation", "InitTPCMCValidation returned with error -> skip plotting!");
 }
 
 /// makeTPCMCAlarms - Set of expression aliases/formulas  (Warning,Outlier,PhysAcc)
